@@ -143,7 +143,7 @@ DOMINANT_HAND = "right"           # "right" | "left" — the hand that drives th
 # ── Cursor (precision layer) ──────────────────────────────────────────────────
 CURSOR_MAPPING = "relative"       # "relative" (trackpad-like) | "absolute" (hand position = screen position)
 CURSOR_ANCHOR_LANDMARK = 5        # index knuckle: stays put while the thumb pinches the index tip
-POINTER_SPEED = 600               # relative: screen px per hand length of slow movement
+POINTER_SPEED = 450               # relative: screen px per hand length of slow movement
 POINTER_ACCEL = 0.5               # relative: extra gain per hand length/s of speed
 POINTER_MAX_GAIN = 3.0            # relative: cap on the acceleration multiplier
 POINTER_MIN_SPEED = 0.06          # relative: slower movement (hand lengths/s) is treated as jitter
