@@ -130,9 +130,65 @@ Activated only when both hands are visible.
 
 ---
 
+## Modal Mode *(opt-in)*
+
+In the classic mode every hand movement is a command, so scratching your face or reaching for a mug moves the cursor and clicks. Modal mode starts **OFF** and ignores your hands until you ask for control, then lets you switch between focused modes.
+
+```python
+# config_local.py (git-ignored) — or edit config.py
+INTERACTION_MODE = "modal"
+```
+
+### Turning it on and switching modes
+
+| Gesture (right hand) | Effect |
+|----------------------|--------|
+| Hold ☝️ (index only) **still** for 0.6 s | Turn on → MOVE |
+| Hold **1 / 2 / 3 / 4** fingers for 0.6 s | Switch to MOVE / SCROLL / SHORTCUTS / MEDIA |
+| Fist | Pause the current mode — open the hand to continue |
+| Fist held 1.5 s, or hand out of view for 2 s | Turn off |
+
+Fingers are counted from index to pinky; the thumb is ignored.
+
+### Modes
+
+| Mode | Gestures |
+|------|----------|
+| **☝️ MOVE** | Move the hand → cursor (trackpad-style: small slow moves are precise, quick moves travel far) · thumb taps index → click · two taps → double click · pinch and hold 0.4 s → drag · thumb taps middle → right click · fist → lift the "mouse" and reposition your hand |
+| **✌️ SCROLL** | Where you make the ✌️ is the center: hand above / below it scrolls up / down, left / right scrolls sideways, further = faster · pinch + up / down → zoom |
+| **3 fingers SHORTCUTS** | Quick flick right / left → next / previous tab · up → `Alt+Tab` · down → show desktop · thumb taps index → `Enter` · thumb taps middle → `Esc` |
+| **4 fingers MEDIA** | Hand above / below the center → volume up / down · thumb taps index → play / pause · thumb taps middle → mute · flick left / right → previous / next track |
+
+Shortcut and media gestures are remappable in `SHORTCUT_BINDINGS` / `MEDIA_BINDINGS` (action names in `core/actions.py`). `MODES_ENABLED` turns modes off.
+
+A small label in the corner of the screen shows the current mode, whether your hand is visible and the progress of a hold; short beeps confirm turning on, off and switching (`HUD_ENABLED`, `HUD_POSITION`, `SOUNDS_ENABLED`).
+
+Gestures are measured relative to your hand's size and work with a tilted hand, so they behave the same close to the camera or reclined further back. The left hand is not used in modal mode yet.
+
+---
+
 ## Calibration
 
-All parameters live in `config.py` — never scattered across modules.
+All parameters live in `config.py` — never scattered across modules. Personal values (camera index, mode, thresholds) can go in a git-ignored `config_local.py` next to it, which overrides `config.py` and survives `git pull`.
+
+<details>
+<summary><b>Modal mode feel</b></summary>
+
+| Symptom | Parameter | Fix |
+|---------|-----------|-----|
+| Cursor too slow / too fast | `POINTER_SPEED` | Increase / decrease (screen px per hand length) |
+| Quick moves don't travel far enough | `POINTER_ACCEL`, `POINTER_MAX_GAIN` | Increase |
+| Cursor creeps when the hand is still | `POINTER_MIN_SPEED` | Increase → try `0.1` |
+| Prefer "hand position = screen position" | `CURSOR_MAPPING` | `"absolute"` |
+| Arms too easily / too slowly | `ARM_HOLD_S`, `ARM_STILLNESS` | Increase / decrease |
+| Mode switches by accident | `MODE_SWITCH_HOLD_S` | Increase → try `0.8` |
+| Clicks not registering | `PINCH_INDEX_ENTER_RATIO` | Increase → try `0.35` |
+| Accidental clicks | `PINCH_INDEX_ENTER_RATIO` | Decrease → try `0.25` |
+| Scroll too fast / slow | `SCROLL_SPEED`, `SCROLL_DEADZONE` | Adjust |
+| Swipes not detected | `SWIPE_VELOCITY` | Decrease → try `2.5` |
+| "MediaPipe processing error" in the log | `MP_VIDEO_MODE` | `False` |
+
+</details>
 
 <details>
 <summary><b>Cursor feel</b></summary>
@@ -257,6 +313,7 @@ airmouse/
 ├── config.py            Every tunable constant, one file
 ├── requirements.txt     Dependencies
 ├── requirements-dev.txt Test dependencies (pytest)
+├── config_local.py      Your overrides (optional, git-ignored)
 ├── test_startup.py      Smoke tests — run before first use
 ├── pytest.ini           Test collection settings
 ├── tests/               Unit tests — no camera needed
@@ -266,9 +323,20 @@ airmouse/
     ├── filter.py        1-euro filter implementation
     ├── display.py       Multi-monitor virtual desktop + DPI mapping
     ├── tracker.py       MediaPipe wrapper → HandsResult dataclass
+    ├── handedness.py    Left/right label stabilization
     ├── actuator.py      Mouse + keyboard injection
+    ├── actions.py       Named shortcut actions for gesture bindings
+    ├── pointer.py       Relative / absolute cursor, clutch, click rollback
+    ├── hud.py           Modal-mode on-screen label
+    ├── feedback.py      Modal-mode sound cues
     └── gestures/
-        ├── orchestrator.py   Coordinates all three processors
+        ├── orchestrator.py   Classic pipeline + build_orchestrator()
+        ├── modal.py          Modal pipeline
+        ├── mode_manager.py   OFF / arm / switch / pause state machine
+        ├── modes/            move.py, scroll.py, shortcuts.py, media.py
+        ├── poses.py          Scale- and rotation-invariant pose classifier
+        ├── stabilizer.py     Pose debouncing
+        ├── motion.py         Swipe detector, joystick rate accumulator
         ├── right_hand.py     5-state machine: IDLE/PENDING/DRAG/SCROLL/LOCKED
         ├── left_hand.py      System shortcuts + Ctrl modifier state
         ├── two_hand.py       Zoom / snap / lock-screen
