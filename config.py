@@ -14,6 +14,7 @@ MP_MODEL_PATH = "models/hand_landmarker.task"  # float16 Tasks API bundle
 MP_MAX_HANDS = 2                  # hands tracked; forced to 1 when both hand layers below are off
 MP_DETECTION_CONFIDENCE = 0.7
 MP_TRACKING_CONFIDENCE = 0.5
+MP_VIDEO_MODE = True              # track landmarks across frames; set False to detect from scratch every frame
 
 # ── Hand layers ────────────────────────────────────────────────────────────────
 # The right hand always drives the mouse. Turning both layers off tracks a single

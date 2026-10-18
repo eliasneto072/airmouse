@@ -6,12 +6,16 @@ Extracts hand landmarks from a BGR frame.
 Returns None if no hand detected; returns list of 21 Landmark objects otherwise.
 
 Key optimizations:
-- RunningMode.IMAGE: simplest mode, stateless per-frame inference
+- RunningMode.VIDEO (MP_VIDEO_MODE): landmarks are tracked from frame to frame and
+  the palm detector only runs when tracking is lost — less jitter, less CPU and
+  steadier handedness labels than per-frame IMAGE mode
+- HandednessStabilizer: smooths left/right label flicker
 - RGB conversion + mp.Image wrapper: required by Tasks API
 - No internal array copy: mp.Image takes ownership of the numpy buffer
 """
 
 import logging
+import time
 from dataclasses import dataclass
 
 import cv2
@@ -20,11 +24,13 @@ from mediapipe.tasks import python
 from mediapipe.tasks.python.vision import HandLandmarker, HandLandmarkerOptions, RunningMode
 import numpy as np
 
+from core.handedness import HandednessStabilizer
 from config import (
     MP_DETECTION_CONFIDENCE,
     MP_TRACKING_CONFIDENCE,
     MP_MODEL_PATH,
     MP_MAX_HANDS,
+    MP_VIDEO_MODE,
     FLIP_HANDEDNESS,
     LEFT_HAND_ENABLED,
     TWO_HAND_GESTURES_ENABLED,
@@ -86,14 +92,20 @@ class HandTracker:
         num_hands = resolve_num_hands(MP_MAX_HANDS, LEFT_HAND_ENABLED, TWO_HAND_GESTURES_ENABLED)
         options = HandLandmarkerOptions(
             base_options=base_options,
-            running_mode=RunningMode.IMAGE,
+            running_mode=RunningMode.VIDEO if MP_VIDEO_MODE else RunningMode.IMAGE,
             num_hands=num_hands,
             min_hand_detection_confidence=MP_DETECTION_CONFIDENCE,
             min_hand_presence_confidence=MP_TRACKING_CONFIDENCE,
             min_tracking_confidence=MP_TRACKING_CONFIDENCE,
         )
         self._detector = HandLandmarker.create_from_options(options)
-        logger.info("MediaPipe HandLandmarker initialized (max_hands=%d)", num_hands)
+        self._last_timestamp_ms = -1
+        self._handedness = HandednessStabilizer(mirrored=FLIP_HANDEDNESS)
+        logger.info(
+            "MediaPipe HandLandmarker initialized (max_hands=%d, mode=%s)",
+            num_hands,
+            "video" if MP_VIDEO_MODE else "image",
+        )
 
     def process(self, frame: np.ndarray) -> HandsResult:
         """
@@ -106,14 +118,23 @@ class HandTracker:
         try:
             rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb)
-            result = self._detector.detect(mp_image)
+            if MP_VIDEO_MODE:
+                # VIDEO mode needs strictly increasing timestamps
+                timestamp_ms = max(int(time.perf_counter() * 1000), self._last_timestamp_ms + 1)
+                self._last_timestamp_ms = timestamp_ms
+                result = self._detector.detect_for_video(mp_image, timestamp_ms)
+            else:
+                result = self._detector.detect(mp_image)
         except Exception as e:
             logger.warning("MediaPipe processing error: %s", e)
             return result_obj
 
         if not result.hand_landmarks:
+            self._handedness.assign([])
             return result_obj
 
+        detected: list[list[Landmark]] = []
+        labels: list[tuple[bool, float, float]] = []
         for i, hand_lms in enumerate(result.hand_landmarks):
             landmarks = [
                 Landmark(
@@ -128,7 +149,11 @@ class HandTracker:
             logger.debug("MediaPipe label=%s FLIP_HANDEDNESS=%s", cam_label, FLIP_HANDEDNESS)
             # MediaPipe Tasks API assumes mirrored input → "Right" = user's right.
             # If FLIP_HANDEDNESS=True, invert (for non-standard camera setups).
-            is_right = (cam_label == "Right") if not FLIP_HANDEDNESS else (cam_label == "Left")
+            labelled_right = (cam_label == "Right") if not FLIP_HANDEDNESS else (cam_label == "Left")
+            detected.append(landmarks)
+            labels.append((labelled_right, landmarks[0].x, landmarks[0].y))
+
+        for landmarks, is_right in zip(detected, self._handedness.assign(labels)):
             if is_right:
                 result_obj.right = landmarks
             else:
