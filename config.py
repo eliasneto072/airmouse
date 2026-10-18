@@ -69,6 +69,59 @@ SCROLL_TICKS = 3
 ZOOM_WRIST_DELTA    = 0.05        # normalized wrist-to-wrist distance change per zoom tick
 LOCK_SCREEN_HOLD_S  = 1.0         # both fists held this long → Win+L
 
+# ── Interaction mode ──────────────────────────────────────────────────────────
+# "classic": the original always-on gesture set (README → Gesture Guide).
+# "modal":   starts DISARMED and ignores the hands until you hold ☝️ still; then
+#            hold 1–4 fingers to switch between MOVE, SCROLL, SHORTCUTS and MEDIA
+#            (README → Modal Mode). The left hand is not used in modal mode yet.
+INTERACTION_MODE = "classic"
+MODES_ENABLED = ("move", "scroll", "shortcuts", "media")
+
+# ── Modal: arming, switching, disarming ───────────────────────────────────────
+ARM_HOLD_S = 0.6                  # hold ☝️ this long to arm…
+ARM_STILLNESS = 0.25              # …without the wrist moving more than this (hand lengths)
+MODE_SWITCH_HOLD_S = 0.6          # hold 1–4 fingers this long to switch mode
+DISARM_HOLD_S = 1.5               # hold a fist this long to disarm (a shorter fist = pause)
+AUTO_DISARM_S = 2.0               # hand out of frame this long → disarm
+HAND_LOST_RELEASE_S = 0.3         # hand out of frame this long → release drag/keys
+
+# ── Modal: SCROLL mode (✌️) ────────────────────────────────────────────────────
+# Works like a joystick: where you make the ✌️ is the center; move the hand
+# above/below (or left/right of) it to scroll, further = faster.
+SCROLL_DEADZONE = 0.25            # hand lengths around the center that do nothing
+SCROLL_SPEED = 15.0               # wheel ticks/s per hand length beyond the dead zone
+SCROLL_MAX_RATE = 30.0            # wheel ticks/s
+HSCROLL_ENABLED = True            # left/right of the center scrolls horizontally
+ZOOM_SPEED = 3.0                  # pinch + up/down: zoom steps/s per hand length
+ZOOM_MAX_RATE = 6.0
+
+# ── Modal: SHORTCUTS (3 fingers) and MEDIA (4 fingers) modes ──────────────────
+# Values are action names from core/actions.py; None leaves a gesture unbound.
+SWIPE_VELOCITY = 3.0              # hand lengths/s for a flick to count as a swipe
+SWIPE_REARM_VELOCITY = 0.8        # the hand must slow below this before the next swipe
+SHORTCUT_BINDINGS = {
+    "swipe_right": "next_tab",
+    "swipe_left": "prev_tab",
+    "swipe_up": "alt_tab",
+    "swipe_down": "show_desktop",
+    "pinch_index": "enter",
+    "pinch_middle": "escape",
+}
+MEDIA_BINDINGS = {
+    "swipe_right": "next_track",
+    "swipe_left": "prev_track",
+    "pinch_index": "play_pause",
+    "pinch_middle": "mute",
+}
+VOLUME_DEADZONE = 0.25            # MEDIA: hand above/below the center changes the volume
+VOLUME_SPEED = 8.0                # volume steps/s per hand length beyond the dead zone
+VOLUME_MAX_RATE = 12.0
+
+# ── Modal: feedback ───────────────────────────────────────────────────────────
+HUD_ENABLED = True                # small always-on-top label with the current mode
+HUD_POSITION = "bottom-right"     # bottom-right | bottom-left | top-right | top-left
+SOUNDS_ENABLED = True             # short beeps on arm / disarm / mode switch
+
 # ── Pose classification (precision layer) ─────────────────────────────────────
 # Geometry is measured in pixels and divided by the hand's own size (wrist →
 # middle-finger knuckle, "hand length"), so thresholds hold at any distance from

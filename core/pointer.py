@@ -103,6 +103,15 @@ class Pointer:
     def unfreeze(self) -> None:
         self._frozen = False
 
+    @property
+    def position(self) -> tuple[float, float] | None:
+        """Last cursor position this pointer set (None before the first move)."""
+        return None if self._pos is None else (self._pos[0], self._pos[1])
+
+    def warp(self, xy: tuple[float, float], now: float) -> None:
+        """Move the cursor to an exact position (e.g. the first click of a double click)."""
+        self._set(xy, now)
+
     # ── Per frame ─────────────────────────────────────────────────────────────
 
     def update(self, hand: HandPose, now: float) -> None:
