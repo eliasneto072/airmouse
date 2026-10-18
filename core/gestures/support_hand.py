@@ -3,13 +3,14 @@
 Left hand (support hand) of the modal mode: system shortcuts while the right
 hand drives the current mode.
 
-- Ignored entirely while the system is OFF.
+- While the system is OFF only the gestures in LEFT_WHEN_OFF work (window
+  switching by default), so Alt+Tab does not need the right hand.
 - A pose has to be held LEFT_HOLD_S (the open hand LEFT_PALM_HOLD_S) before its
   action fires, and fires once: change pose to fire again.
 - ☝️ + a quick flick left / right / up / down fires the one_swipe_* bindings.
-- "window_switcher": Alt+Tab with Alt kept down while the pose is held; thumb
-  taps on the index / middle move to the next / previous window; dropping the
-  pose releases Alt, which picks the highlighted window.
+- "window_switcher": Alt+Tab with Alt kept down while the pose is held; a flick
+  right / left or a thumb tap on the index / middle moves to the next / previous
+  window; dropping the pose releases Alt, which picks the highlighted window.
 - "hold_ctrl": Ctrl is down while the pose is held and the right hand is in view,
   and only if the hand was seen closing (a fist that enters the frame already
   closed — a resting hand — never presses Ctrl).
@@ -30,6 +31,7 @@ from config import (
     LEFT_HOLD_S,
     LEFT_NEEDS_FIST,
     LEFT_PALM_HOLD_S,
+    LEFT_WHEN_OFF,
 )
 from core.actions import run_action, validate_bindings
 from core.gestures.modes.base import PinchEdges
@@ -71,6 +73,7 @@ class SupportHand:
         switcher_max_s: float = ALT_SWITCHER_MAX_S,
         lost_release_s: float = HAND_LOST_RELEASE_S,
         needs_fist: tuple[str, ...] = LEFT_NEEDS_FIST,
+        when_off: tuple[str, ...] = LEFT_WHEN_OFF,
     ) -> None:
         self._actuator = actuator
         self._bindings = dict(LEFT_HAND_BINDINGS if bindings is None else bindings)
@@ -80,10 +83,12 @@ class SupportHand:
         self._switcher_max_s = switcher_max_s
         self._lost_release_s = lost_release_s
         self._needs_fist = set(needs_fist)
+        self._when_off = set(when_off)
         self._stabilizer = PoseStabilizer()
         self._swipes = SwipeDetector()
         self._pinches = PinchEdges()
         self._ctrl = False
+        self._active = False
         self._switcher_since: float | None = None
         self._lost_since: float | None = None
         self._toast: tuple[str, float] | None = None
@@ -117,14 +122,26 @@ class SupportHand:
             self._actuator.key_up("ctrl")
             self._ctrl = False
 
-    def process(self, hand: HandPose | None, now: float, active: bool, dominant_visible: bool) -> None:
+    def process(
+        self,
+        hand: HandPose | None,
+        now: float,
+        active: bool,
+        dominant_visible: bool,
+        enabled: bool = True,
+    ) -> None:
         """
         Args:
             hand:             the support hand this frame, or None
-            active:           the system is on (a mode is active)
+            active:           the system is on (a mode is active); when False only
+                              the LEFT_WHEN_OFF gestures work
             dominant_visible: the right hand is in view (required to hold Ctrl)
+            enabled:          False ignores the hand entirely (e.g. not looking at the screen)
         """
-        if not active:
+        if self._active and not active:
+            self.release()  # the system turned off: drop Ctrl / Alt held for the mode
+        self._active = active
+        if not enabled or (not active and not self._when_off):
             self.release()
             self._stabilizer.reset()
             self._swipes.reset()
@@ -163,8 +180,11 @@ class SupportHand:
 
         if pose == Pose.ONE:
             swipe = self._swipes.update(hand, now)
-            if swipe:
+            if swipe and self._allowed(f"one_{swipe}"):
                 self._fire(self._bindings.get(f"one_{swipe}"), now)
+            return
+
+        if not self._allowed(key):
             return
 
         action = self._bindings.get(key)
@@ -196,12 +216,16 @@ class SupportHand:
 
     # ── Internals ─────────────────────────────────────────────────────────────
 
+    def _allowed(self, gesture: str) -> bool:
+        return self._active or gesture in self._when_off
+
     def _fire(self, action: str | None, now: float) -> None:
         if run_action(self._actuator, action):
             self._toast = (_ACTION_LABELS.get(action, action.replace("_", " ")), now)
 
     def _window_switcher(self, hand: HandPose, held_for: float, now: float) -> None:
         index_tap, middle_tap = self._pinches.update(hand)
+        swipe = self._swipes.update(hand, now)
         if self._switcher_since is None:
             if not self._fired and held_for >= self._hold_s:
                 self._fired = True
@@ -212,7 +236,7 @@ class SupportHand:
         if now - self._switcher_since >= self._switcher_max_s:
             self.release()
             return
-        if index_tap:
+        if index_tap or swipe == "swipe_right":
             self._actuator.press_combo("tab")
-        if middle_tap:
+        if middle_tap or swipe == "swipe_left":
             self._actuator.press_combo("shift", "tab")

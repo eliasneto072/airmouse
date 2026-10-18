@@ -59,11 +59,49 @@ class Rig:
         return self.actuator.held
 
 
-def test_left_hand_is_ignored_while_off():
+def test_left_hand_only_switches_windows_while_off():
     rig = Rig()
-    rig.frames(1.0, right=None, left="peace")
     rig.frames(1.0, right=None, left="three")
+    rig.frames(1.0, right=None, left="fist")
+    rig.frames(1.0, right=None, left="open", left_pinch="index")
     assert rig.actuator.calls == []
+    rig.frames(0.5, right=None, left="peace")          # no right hand needed for Alt+Tab
+    assert "alt" in rig.held
+    rig.frames(0.3, right=None, left="point")
+    assert "alt" not in rig.held
+
+
+def test_window_switcher_flicks():
+    rig = Rig()
+    rig.frames(0.5, right=None, left="peace")
+    rig.frames(0.1, right=None, left="peace", left_end=(LEFT_HOME[0] - 0.8 * HAND_LENGTH_X, LEFT_HOME[1]))
+    rig.frames(0.5, right=None, left="peace", left_end=(LEFT_HOME[0] - 0.8 * HAND_LENGTH_X, LEFT_HOME[1]))
+    assert rig.actuator.combos() == [("tab",), ("tab",)]   # opened, then flick right → next
+
+
+def test_one_finger_flick_up_is_quick_alt_tab_without_right_hand():
+    rig = Rig()
+    rig.frames(0.3, right=None, left="point")
+    top = (LEFT_HOME[0], LEFT_HOME[1] - 0.8 * SCALE)
+    for i in range(1, 9):  # flick the left hand up in ~0.1 s
+        rig.clock.advance(DT)
+        c = (LEFT_HOME[0], LEFT_HOME[1] - 0.8 * SCALE * i / 8)
+        rig.modal.process(HandsResult(left=make_hand("point", center=c, scale=SCALE, frame=FRAME)))
+    for _ in range(30):
+        rig.clock.advance(DT)
+        rig.modal.process(HandsResult(left=make_hand("point", center=top, scale=SCALE, frame=FRAME)))
+    assert rig.actuator.combos() == [("alt", "tab")]
+
+
+def test_turning_off_drops_ctrl_held_by_left_hand():
+    rig = Rig()
+    rig.arm()
+    rig.frames(0.3, left="three")
+    rig.frames(0.6, left="fist")
+    assert "ctrl" in rig.held
+    rig.frames(1.6, right="fist", left="fist")
+    assert rig.modal.manager.mode == Mode.DISARMED
+    assert "ctrl" not in rig.held
 
 
 def test_held_window_switcher():

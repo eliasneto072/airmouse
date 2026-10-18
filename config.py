@@ -141,16 +141,19 @@ WINDOW_BINDINGS = {
 }
 
 # ── Modal: left hand (support hand) ───────────────────────────────────────────
-# Active only while the right hand has a mode on (and LEFT_HAND_ENABLED). A pose
-# must be held LEFT_HOLD_S and fires once; change pose to fire again.
+# Active while the right hand has a mode on (and LEFT_HAND_ENABLED); the
+# gestures in LEFT_WHEN_OFF also work with the system OFF (no right hand needed).
+# A pose must be held LEFT_HOLD_S and fires once; change pose to fire again.
 # Values are action names from core/actions.py, None (unbound), or the special
 # "window_switcher" (held Alt+Tab) and "hold_ctrl" (Ctrl held while the pose is).
 LEFT_HOLD_S = 0.35
 LEFT_PALM_HOLD_S = 0.9            # the open hand (5) is also a resting hand: needs a longer hold…
 LEFT_NEEDS_FIST = ("five",)       # …and only fires right after a fist (✊ → 🖐️)
 ALT_SWITCHER_MAX_S = 10.0         # the window switcher lets go of Alt after this long
+LEFT_WHEN_OFF = ("two", "one_swipe_up")  # window switching works without the right hand
 LEFT_HAND_BINDINGS = {
-    "two": "window_switcher",     # ✌️: Alt+Tab stays open — thumb taps index → next, middle → previous; drop the ✌️ to pick
+    "two": "window_switcher",     # ✌️: Alt+Tab stays open — flick right / thumb taps index → next,
+                                  # flick left / thumb taps middle → previous; drop the ✌️ to pick
     "three": "task_view",
     "four": None,                 # four fingers, thumb folded: free slot
     "five": "show_desktop",       # open hand, right after a fist (LEFT_NEEDS_FIST)
@@ -159,8 +162,8 @@ LEFT_HAND_BINDINGS = {
                                   # only when you close the hand in view (a resting fist never holds Ctrl)
     "one_swipe_left": "back",     # ☝️ + flick to your left
     "one_swipe_right": "forward",
-    "one_swipe_up": None,
-    "one_swipe_down": None,
+    "one_swipe_up": "alt_tab",    # ☝️ + flick up: jump back to the previous window
+    "one_swipe_down": "escape",   # ☝️ + flick down: close menus / dialogs / full screen
 }
 
 # ── Modal: feedback ───────────────────────────────────────────────────────────

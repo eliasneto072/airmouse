@@ -168,17 +168,19 @@ Gestures are measured relative to your hand's size and work with a tilted hand, 
 
 ### Left hand
 
-While the right hand has a mode on, the left hand fires system shortcuts (it is ignored while OFF). Hold a pose for a moment; each pose fires once — change pose to fire again.
+While the right hand has a mode on, the left hand fires system shortcuts. Window switching (✌️ and ☝️ + flick up) also works while OFF, without the right hand (`LEFT_WHEN_OFF`); everything else is ignored while OFF. Hold a pose for a moment; each pose fires once — change pose to fire again.
 
 | Left hand | Action |
 |-----------|--------|
-| ✌️ held | `Alt+Tab` that stays open — thumb taps index → next window, thumb taps middle → previous; drop the ✌️ to pick the window |
+| ✌️ held | `Alt+Tab` that stays open — flick right or thumb taps index → next window, flick left or thumb taps middle → previous; drop the ✌️ to pick the window |
+| ☝️ + flick up | Quick `Alt+Tab`: back to the previous window |
+| ☝️ + flick down | `Esc` |
 | 3 fingers | Task View (`Win+Tab`) |
 | ✊ then 🖐️ (open hand) | Show desktop (`Win+D`) — needs the fist first, since an open hand is also a resting hand |
 | 👌 | Start menu |
 | ✊ | Hold `Ctrl` while the right hand is in view (Ctrl+click, Ctrl+scroll = zoom) — only when you close the hand in view, so a resting fist never holds Ctrl |
 | ☝️ + flick left / right | Back / forward (`Alt+←` / `Alt+→`) |
-| 4 fingers (thumb folded), ☝️ + flick up / down | Free slots |
+| 4 fingers (thumb folded) | Free slot |
 
 Remap in `LEFT_HAND_BINDINGS`; `LEFT_HAND_ENABLED = False` turns the left hand off (and tracks a single hand). Left-handed? `DOMINANT_HAND = "left"` swaps the roles. The label in the corner shows `CTRL` / `ALT+TAB` or the last left-hand action.
 
