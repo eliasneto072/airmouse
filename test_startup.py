@@ -37,14 +37,16 @@ def test_mediapipe() -> None:
 def test_actuator() -> None:
     from core.display import build_virtual_desktop, build_trackpad_zone
     from core.actuator import MouseActuator
-    from core.gestures import GestureOrchestrator
+    from core.gestures import build_orchestrator
     from core.tracker import HandsResult
     desktop = build_virtual_desktop()
     trackpad = build_trackpad_zone()
     actuator = MouseActuator(desktop.total_width, desktop.total_height)
-    orch = GestureOrchestrator(actuator, desktop, trackpad)
+    # The pipeline selected by INTERACTION_MODE (no HUD window / sounds in the smoke test)
+    orch = build_orchestrator(actuator, desktop, trackpad, hud_enabled=False, sounds_enabled=False)
     # Feed empty frame (no hands) — verifies orchestrator initialises and processes without error
     orch.process(HandsResult())
+    orch.shutdown()
     # Also verify raw move still works
     actuator.move(0, 0)
 
