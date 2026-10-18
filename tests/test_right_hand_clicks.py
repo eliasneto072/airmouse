@@ -94,3 +94,29 @@ def test_pinch_hold_still_drags(rig):
     assert actuator.count("drag_end") == 1
     assert actuator.count("left_click") == 0
     assert not actuator.held
+
+
+def test_right_click_fires_once_while_held(rig):
+    _, actuator, _ = rig
+    hold(rig, 0.5)
+    hold(rig, 2.0, pinch="middle")
+    assert actuator.count("right_click") == 1
+
+
+def test_right_click_rearms_after_release(rig):
+    _, actuator, _ = rig
+    hold(rig, 0.5)
+    hold(rig, 0.2, pinch="middle")
+    hold(rig, 0.5)
+    hold(rig, 0.2, pinch="middle")
+    assert actuator.count("right_click") == 2
+
+
+def test_hand_lost_while_right_pinching_rearms(rig):
+    processor, actuator, clock = rig
+    hold(rig, 0.5)
+    hold(rig, 0.2, pinch="middle")
+    clock.advance(0.5)
+    processor.process(None)  # hand leaves the frame mid-pinch
+    hold(rig, 0.2, pinch="middle")
+    assert actuator.count("right_click") == 2

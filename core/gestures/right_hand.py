@@ -82,6 +82,7 @@ class RightHandProcessor:
         self._last_click_time: float = 0.0
         self._last_click_pos: tuple[int, int] | None = None
         self._cursor_pos: tuple[int, int] | None = None
+        self._right_pinch_active: bool = False
         self._last_gesture_time: float = 0.0
         self._last_scroll_time: float = 0.0
         self._prev_wrist_y: float | None = None
@@ -106,6 +107,7 @@ class RightHandProcessor:
                 self._actuator.drag_end()
             self._state = _State.IDLE
             self._pinch_start_time = None
+            self._right_pinch_active = False
             self._prev_wrist_y = None
             self._last_frame_time = None
             return
@@ -165,12 +167,15 @@ class RightHandProcessor:
             logger.debug("Entered scroll mode (peace sign)")
             return
 
-        # ── Right click ───────────────────────────────────────────────────────
-        if (
-            d_thumb_mid < THUMB_MIDDLE_CLICK_DIST
+        # ── Right click (edge-triggered: once per thumb+middle pinch) ────────
+        if d_thumb_mid >= THUMB_MIDDLE_CLICK_DIST:
+            self._right_pinch_active = False
+        elif (
+            not self._right_pinch_active
             and self._state == _State.IDLE
             and (now - self._last_gesture_time) >= GESTURE_COOLDOWN_SECONDS
         ):
+            self._right_pinch_active = True
             self._actuator.right_click()
             self._last_gesture_time = now
             logger.debug("Right click (d=%.4f)", d_thumb_mid)
