@@ -29,6 +29,18 @@ logger = logging.getLogger(__name__)
 
 _user32 = ctypes.WinDLL("user32", use_last_error=True)
 
+_SM_XVIRTUALSCREEN = 76
+_SM_YVIRTUALSCREEN = 77
+
+
+class _POINT(ctypes.Structure):
+    _fields_ = [("x", ctypes.c_long), ("y", ctypes.c_long)]
+
+
+def _to_key(name: str):
+    """'ctrl' → Key.ctrl, 'media_play_pause' → Key.media_play_pause, 'c' → 'c'."""
+    return name if len(name) == 1 else getattr(Key, name)
+
 # ── SendInput ctypes structures ───────────────────────────────────────────────
 
 class MOUSEINPUT(ctypes.Structure):
@@ -84,7 +96,17 @@ class MouseActuator:
         self._pynput = MouseController()
         self._dragging = False
         self._keyboard = KeyboardController()
+        self._held_keys: set[str] = set()
         logger.info("MouseActuator ready (%dx%d desktop)", total_width, total_height)
+
+    def position(self) -> tuple[int, int]:
+        """Current cursor position, in the same virtual-desktop coordinates move() takes."""
+        pt = _POINT()
+        _user32.GetCursorPos(ctypes.byref(pt))
+        return (
+            pt.x - _user32.GetSystemMetrics(_SM_XVIRTUALSCREEN),
+            pt.y - _user32.GetSystemMetrics(_SM_YVIRTUALSCREEN),
+        )
 
     def move(self, x: int, y: int) -> None:
         """
@@ -178,10 +200,41 @@ class MouseActuator:
             self._keyboard.release(Key.right)
 
     def ctrl_down(self) -> None:
-        self._keyboard.press(Key.ctrl)
+        self.key_down("ctrl")
 
     def ctrl_up(self) -> None:
-        self._keyboard.release(Key.ctrl)
+        self.key_up("ctrl")
+
+    # ── Generic keyboard helpers (used by the named actions in core/actions.py) ──
+
+    def press_combo(self, *keys: str) -> None:
+        """Press keys in order and release them in reverse, e.g. press_combo("ctrl", "shift", "tab")."""
+        resolved = [_to_key(k) for k in keys]
+        for key in resolved:
+            self._keyboard.press(key)
+        for key in reversed(resolved):
+            self._keyboard.release(key)
+
+    def key_down(self, key: str) -> None:
+        """Hold a key until key_up() / release_all(). Repeated calls are ignored."""
+        if key not in self._held_keys:
+            self._keyboard.press(_to_key(key))
+            self._held_keys.add(key)
+
+    def key_up(self, key: str) -> None:
+        if key in self._held_keys:
+            self._keyboard.release(_to_key(key))
+            self._held_keys.discard(key)
+
+    def hscroll(self, ticks: int) -> None:
+        """Scroll horizontally. Positive ticks = scroll right."""
+        self._pynput.scroll(ticks, 0)
+
+    def release_all(self) -> None:
+        """Release every held key and the drag button. Safe to call any time."""
+        self.drag_end()
+        for key in list(self._held_keys):
+            self.key_up(key)
 
     def zoom_in(self) -> None:
         with self._keyboard.pressed(Key.ctrl):

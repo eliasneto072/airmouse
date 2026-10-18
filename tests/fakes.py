@@ -62,6 +62,32 @@ class FakeActuator:
     def is_dragging(self) -> bool:
         return "mouse_left" in self.held
 
+    def position(self) -> tuple[int, int]:
+        return self.pos
+
+    def press_combo(self, *keys: str) -> None:
+        self._record("combo", *keys)
+
+    def key_down(self, key: str) -> None:
+        self.held.add(key)
+        self._record("key_down", key)
+
+    def key_up(self, key: str) -> None:
+        self.held.discard(key)
+        self._record("key_up", key)
+
+    def release_all(self) -> None:
+        self.held.clear()
+        self._record("release_all")
+
+    def combos(self) -> list[tuple[str, ...]]:
+        """Every key combination sent with press_combo(), in order."""
+        return [args for name, args, _ in self.calls if name == "combo"]
+
+    def total(self, name: str) -> int:
+        """Sum of the first argument of every call to ``name`` (e.g. scroll ticks)."""
+        return sum(args[0] for call_name, args, _ in self.calls if call_name == name)
+
     # ── Query helpers ────────────────────────────────────────────────────────
     def count(self, name: str) -> int:
         return sum(1 for call in self.calls if call[0] == name)
@@ -73,7 +99,7 @@ class FakeActuator:
 
 # One-shot actions: recorded, no state.
 _ONE_SHOT_ACTIONS = (
-    "left_click", "right_click", "double_click", "scroll",
+    "left_click", "right_click", "double_click", "scroll", "hscroll",
     "win_d", "alt_tab", "win_tab", "win_key", "alt_left", "win_l",
     "win_snap_left", "win_snap_right", "zoom_in", "zoom_out",
 )
