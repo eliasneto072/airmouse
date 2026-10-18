@@ -2,6 +2,7 @@
 
 import pytest
 
+from core.attention import AttentionState
 from core.display import TrackpadZone, VirtualDesktop
 from core.gestures.modal import ModalOrchestrator
 from core.gestures.mode_manager import Mode
@@ -23,6 +24,8 @@ class Rig:
         enabled=("move", "scroll", "shortcuts", "media", "windows"),
         start_needs_fist=("windows",),
         scroll_style="stroke",
+        attention=None,
+        attention_gate="always",
     ):
         self.clock = FakeClock()
         self.actuator = FakeActuator()
@@ -36,6 +39,8 @@ class Rig:
             enabled=enabled,
             start_needs_fist=start_needs_fist,
             scroll_style=scroll_style,
+            attention=attention,
+            attention_gate=attention_gate,
             clock=self.clock,
         )
 
@@ -405,3 +410,72 @@ def test_windows_mode_swipes():
     rig.hold(0.1, pose="open", end=users_right(0.8))
     rig.hold(0.4, pose="open", center=users_right(0.8))
     assert rig.actuator.combos() == [("cmd", "right")]
+
+
+# ── Attention gate ────────────────────────────────────────────────────────────
+
+class FakeAttention:
+    def __init__(self):
+        self.facing = True
+        self.looking = True
+        self.calibrations = 0
+
+    def process(self, frame, now, adapt):
+        return AttentionState(face=True, angle=0.0, facing=self.facing, looking=self.looking)
+
+    def calibrate(self):
+        self.calibrations += 1
+
+    def close(self):
+        pass
+
+
+def test_mode_does_not_start_while_looking_away():
+    att = FakeAttention()
+    att.facing = att.looking = False
+    rig = Rig(attention=att)
+    rig.hold(1.2)
+    assert rig.mode == Mode.DISARMED
+    assert rig.modal.status.pending == "look"
+
+
+def test_holding_longer_starts_anyway_and_relearns_the_screen():
+    att = FakeAttention()
+    att.facing = att.looking = False
+    rig = Rig(attention=att)
+    rig.hold(2.3)
+    assert rig.mode == Mode.MOVE
+    assert att.calibrations == 1
+
+
+def test_normal_start_does_not_recalibrate():
+    att = FakeAttention()
+    rig = Rig(attention=att)
+    rig.arm()
+    assert att.calibrations == 0
+
+
+def test_looking_away_pauses_the_mode_and_looking_back_resumes():
+    att = FakeAttention()
+    rig = Rig(attention=att)
+    rig.arm()
+    att.looking = False                      # e.g. looking at the phone
+    rig.hold(0.6, end=users_right(1.0))
+    rig.tap(center=users_right(1.0))
+    assert rig.actuator.count("left_click") == 0
+    assert rig.modal.status.pending == "away"
+    still = rig.actuator.pos
+    att.looking = True
+    rig.hold(0.3, center=users_right(1.0))
+    assert abs(rig.actuator.pos[0] - still[0]) < 30   # no jump when coming back
+    rig.tap(center=users_right(1.0))
+    assert rig.actuator.count("left_click") == 1
+
+
+def test_start_gate_does_not_pause_active_modes():
+    att = FakeAttention()
+    rig = Rig(attention=att, attention_gate="start")
+    rig.arm()
+    att.facing = att.looking = False
+    rig.tap()
+    assert rig.actuator.count("left_click") == 1

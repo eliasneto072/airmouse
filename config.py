@@ -166,6 +166,23 @@ LEFT_HAND_BINDINGS = {
     "one_swipe_down": "escape",   # ☝️ + flick down: close menus / dialogs / full screen
 }
 
+# ── Modal: attention (only react while you look at the screen) ────────────────
+# Uses MediaPipe face tracking to see where your head is pointing. Looking at
+# your phone, out of the window or at another monitor makes gestures not count.
+# "always": modes only start while you face the screen, and a mode pauses while
+#           you look away (it resumes when you look back)
+# "start":  only starting a mode needs you to face the screen
+# "off":    no face tracking
+ATTENTION_GATE = "always"
+ATTENTION_MAX_ANGLE = 28.0        # degrees your head may turn away from the screen direction
+ATTENTION_AWAY_S = 0.8            # looking away this long pauses the mode
+ATTENTION_OVERRIDE_S = 2.0        # hold a start gesture this long to start anyway — and re-learn
+                                  # where the screen is (e.g. after changing your posture a lot)
+ATTENTION_ADAPT_S = 8.0           # how fast the screen direction follows your posture while in a mode
+ATTENTION_EVERY_N_FRAMES = 3      # run face tracking every N camera frames
+FACE_MODEL_PATH = "models/face_landmarker.task"  # downloaded automatically on first run
+FACE_MODEL_URL = "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task"
+
 # ── Modal: feedback ───────────────────────────────────────────────────────────
 HUD_ENABLED = True                # small always-on-top label with the current mode
 HUD_POSITION = "bottom-right"     # bottom-right | bottom-left | top-right | top-left

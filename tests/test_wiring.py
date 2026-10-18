@@ -19,7 +19,9 @@ def test_classic_is_the_default():
 
 def test_modal_mode():
     actuator = FakeActuator()
-    modal = build_orchestrator(actuator, DESKTOP, TRACKPAD, mode="modal", hud_enabled=False, sounds_enabled=False)
+    modal = build_orchestrator(
+        actuator, DESKTOP, TRACKPAD, mode="modal", hud_enabled=False, sounds_enabled=False, attention_gate="off"
+    )
     assert isinstance(modal, ModalOrchestrator)
     assert modal.right_state == "DISARMED"
     modal.shutdown()

@@ -9,6 +9,7 @@ import time
 from typing import Callable
 
 from config import (
+    ATTENTION_GATE,
     DOMINANT_HAND,
     LEFT_HAND_ENABLED,
     MODE_START_NEEDS_FIST,
@@ -35,9 +36,10 @@ class ModalOrchestrator:
     Drop-in replacement for GestureOrchestrator when INTERACTION_MODE = "modal".
 
     Args:
-        hud:    object with update(ModalStatus) / stop(), or None
-        sounds: object with play(event), or None
-        clock:  time source (tests inject a fake one)
+        hud:       object with update(ModalStatus) / stop(), or None
+        sounds:    object with play(event), or None
+        attention: AttentionGate (process(frame, now, adapt) / calibrate() / close()), or None
+        clock:     time source (tests inject a fake one)
     """
 
     def __init__(
@@ -52,6 +54,8 @@ class ModalOrchestrator:
         start_needs_fist: tuple[str, ...] = MODE_START_NEEDS_FIST,
         scroll_style: str = SCROLL_STYLE,
         support_hand: bool = LEFT_HAND_ENABLED,
+        attention=None,
+        attention_gate: str = ATTENTION_GATE,
         clock: Callable[[], float] = time.perf_counter,
     ) -> None:
         if dominant_hand not in ("right", "left"):
@@ -61,6 +65,11 @@ class ModalOrchestrator:
         self._clock = clock
         self._hud = hud
         self._sounds = sounds
+        if attention_gate not in ("always", "start", "off"):
+            raise ValueError(f"ATTENTION_GATE must be 'always', 'start' or 'off', not {attention_gate!r}")
+        self._attention = attention if attention_gate != "off" else None
+        self._attention_gate = attention_gate
+        self._started = False
         self._classifier = PoseClassifier()
         self._support_classifier = PoseClassifier()
         self._support = SupportHand(actuator) if support_hand else None
@@ -106,8 +115,15 @@ class ModalOrchestrator:
             text += f" → {status.pending} {status.progress:.0%}"
         return text
 
-    def process(self, hands: HandsResult) -> None:
+    def process(self, hands: HandsResult, frame=None) -> None:
         now = self._clock()
+        facing = looking = True
+        if self._attention is not None:
+            mode_on = self._manager.mode != Mode.DISARMED and not self._manager.paused
+            state = self._attention.process(frame, now, adapt=mode_on)
+            facing = state.facing
+            looking = state.looking if self._attention_gate == "always" else True
+
         if self._dominant == "right":
             dominant_lm, support_lm = hands.right, hands.left
         else:
@@ -118,7 +134,10 @@ class ModalOrchestrator:
             hand = None
         else:
             hand = self._classifier.classify(dominant_lm)
-        self._manager.process(hand, now)
+        self._started = False
+        self._manager.process(hand, now, facing=facing, looking=looking)
+        if self._started and self._attention is not None and self._manager.started_with_override:
+            self._attention.calibrate()  # started on purpose while "not facing": that is where the screen is
 
         if self._support is not None:
             if support_lm is None:
@@ -131,6 +150,7 @@ class ModalOrchestrator:
                 now,
                 active=self._manager.mode != Mode.DISARMED,
                 dominant_visible=hand is not None,
+                enabled=looking and (facing or self._manager.mode != Mode.DISARMED),
             )
 
         if self._hud is not None:
@@ -143,7 +163,11 @@ class ModalOrchestrator:
         self._actuator.release_all()
         if self._hud is not None:
             self._hud.stop()
+        if self._attention is not None:
+            self._attention.close()
 
     def _on_event(self, event: str, mode: Mode) -> None:
+        if event == "arm":
+            self._started = True
         if self._sounds is not None:
             self._sounds.play(event)

@@ -166,6 +166,22 @@ A small label in the corner of the screen shows the current mode, whether your h
 
 Gestures are measured relative to your hand's size and work with a tilted hand, so they behave the same close to the camera or reclined further back.
 
+### Only while you look at the screen
+
+Modal mode uses MediaPipe face tracking to see where your head is pointing. Looking at your phone, out of the window or at another monitor, gestures don't count:
+
+- a mode only starts while you face the screen — or if you keep holding the start gesture for 2 s, which also re-learns where your screen is (after a big posture change, or with the camera off to the side);
+- an active mode pauses while you look away for ~1 s and resumes when you look back (the label shows "not looking");
+- the left hand is ignored while you look away.
+
+The "screen direction" starts as "facing the camera" and slowly follows your posture while you use a mode. Head tilt (resting your head sideways) is ignored. The face model (~3.7 MB) is downloaded to `models/` on first run; if that fails, download it manually:
+
+```powershell
+curl.exe --ssl-no-revoke -L -o models\face_landmarker.task https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task
+```
+
+`ATTENTION_GATE = "start"` only gates starting a mode; `"off"` disables face tracking. `ATTENTION_MAX_ANGLE` (degrees) sets how far you may turn your head.
+
 ### Left hand
 
 While the right hand has a mode on, the left hand fires system shortcuts. Window switching (✌️ and ☝️ + flick up) also works while OFF, without the right hand (`LEFT_WHEN_OFF`); everything else is ignored while OFF. Hold a pose for a moment; each pose fires once — change pose to fire again.
@@ -210,6 +226,9 @@ All parameters live in `config.py` — never scattered across modules. Personal 
 | Flicks not detected / slow moves scroll | `STROKE_START_VELOCITY` | Decrease / increase |
 | Swipes not detected | `SWIPE_VELOCITY` | Decrease → try `2.5` |
 | "MediaPipe processing error" in the log | `MP_VIDEO_MODE` | `False` |
+| Pauses while you are looking at the screen | `ATTENTION_MAX_ANGLE` | Increase → try `35` — or hold a start gesture 2 s to re-learn the screen direction |
+| Still reacts when looking at the phone | `ATTENTION_MAX_ANGLE` | Decrease → try `22` |
+| Camera can't see your face | `ATTENTION_GATE` | `"off"` |
 
 </details>
 
@@ -351,6 +370,8 @@ airmouse/
     ├── actions.py       Named shortcut actions for gesture bindings
     ├── pointer.py       Relative / absolute cursor, clutch, click rollback
     ├── hud.py           Modal-mode on-screen label
+    ├── attention.py     Head direction → "looking at the screen?"
+    ├── face_tracker.py  MediaPipe face landmarks for the attention gate
     ├── feedback.py      Modal-mode sound cues
     └── gestures/
         ├── orchestrator.py   Classic pipeline + build_orchestrator()

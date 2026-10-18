@@ -14,6 +14,10 @@ continuous gesture. Modes listed in MODE_START_NEEDS_FIST (WINDOWS by default:
 an open hand is how a resting hand looks) only start right after a fist.
 
 While OFF nothing is sent to the OS, whatever the hand does.
+
+Attention (optional, see core/attention.py): a mode only starts while the user
+faces the screen — or after holding the start gesture ATTENTION_OVERRIDE_S —
+and an active mode pauses while the user looks away.
 """
 
 from __future__ import annotations
@@ -27,6 +31,7 @@ from typing import Callable
 from config import (
     ARM_HOLD_S,
     ARM_STILLNESS,
+    ATTENTION_OVERRIDE_S,
     AUTO_DISARM_S,
     DISARM_HOLD_S,
     HAND_LOST_RELEASE_S,
@@ -61,7 +66,7 @@ class ModalStatus:
     mode: Mode
     paused: bool
     hand_visible: bool
-    pending: str | None   # "choose", "disarm" or the name of the mode being started
+    pending: str | None   # "choose", "disarm", "look", "away" or the name of the mode being started
     progress: float       # 0..1 progress of the pending hold
     support: str | None = None  # what the left hand is holding / just did ("CTRL", "ALT+TAB", …)
 
@@ -81,6 +86,7 @@ class ModeManager:
         disarm_hold_s: float = DISARM_HOLD_S,
         auto_disarm_s: float = AUTO_DISARM_S,
         hand_lost_release_s: float = HAND_LOST_RELEASE_S,
+        override_s: float = ATTENTION_OVERRIDE_S,
     ) -> None:
         self._handlers = handlers
         self._actuator = actuator
@@ -96,6 +102,10 @@ class ModeManager:
         self._disarm_hold_s = disarm_hold_s
         self._auto_disarm_s = auto_disarm_s
         self._hand_lost_release_s = hand_lost_release_s
+        self._override_s = override_s
+        self._away = False
+        self._hold_blocked = False          # the pending start needs the override (not facing the screen)
+        self.started_with_override = False  # the last mode start used the override
 
         self._stabilizer = PoseStabilizer()
         self.mode = Mode.DISARMED
@@ -119,7 +129,7 @@ class ModeManager:
     @property
     def status(self) -> ModalStatus:
         if isinstance(self._hold_target, Mode):
-            pending: str | None = self._hold_target.value
+            pending: str | None = "look" if self._hold_blocked else self._hold_target.value
         else:
             pending = self._hold_target
         return ModalStatus(self.mode, self.paused, self._hand_visible, pending, self._hold_progress)
@@ -135,11 +145,17 @@ class ModeManager:
         self._actuator.release_all()
         self.mode = Mode.DISARMED
         self.paused = False
+        self._away = False
         self._clear_hold()
         logger.info("Off")
         self._on_event("disarm", self.mode)
 
-    def process(self, hand: HandPose | None, now: float) -> None:
+    def process(self, hand: HandPose | None, now: float, facing: bool = True, looking: bool = True) -> None:
+        """
+        Args:
+            facing:  the user faces the screen right now (gates starting a mode)
+            looking: the user has not been looking away for long (gates an active mode)
+        """
         if hand is None:
             self._no_hand(now)
             return
@@ -154,8 +170,25 @@ class ModeManager:
         pose = self._stabilizer.update(hand.pose, now)
 
         if self.mode == Mode.DISARMED:
-            self._process_off(hand, pose, now)
+            self._process_off(hand, pose, now, facing)
             return
+
+        if not looking:
+            if not self._away:
+                self._away = True
+                self._clear_hold()
+                if not self.paused:
+                    self.handler.pause(now)
+                self._on_event("away", self.mode)
+            self._hold_target = "away"
+            self._hold_progress = 0.0
+            return
+        if self._away:
+            self._away = False
+            self._clear_hold()
+            if not self.paused:
+                self.handler.resume(hand, now)
+            self._on_event("back", self.mode)
 
         if pose == Pose.FIST and not hand.any_pinch:
             if not self.paused:
@@ -186,8 +219,9 @@ class ModeManager:
         self._hold_target = None
         self._hold_origin = None
         self._hold_progress = 0.0
+        self._hold_blocked = False
 
-    def _process_off(self, hand: HandPose, pose: Pose, now: float) -> None:
+    def _process_off(self, hand: HandPose, pose: Pose, now: float, facing: bool = True) -> None:
         if pose == Pose.FIST:
             self._fist_closed = True
             self._primed_until = None
@@ -223,10 +257,13 @@ class ModeManager:
             self._hold_progress = 0.0
             return
 
-        self._hold_progress = min(1.0, (now - self._hold_since) / self._hold_needed)
-        if now - self._hold_since >= self._hold_needed:
+        needed = self._hold_needed if facing else max(self._hold_needed, self._override_s)
+        self._hold_blocked = not facing
+        self._hold_progress = min(1.0, (now - self._hold_since) / needed)
+        if now - self._hold_since >= needed:
             self._clear_hold()
             self._primed_until = None
+            self.started_with_override = not facing
             self.mode = target
             self.paused = False
             self.handler.enter(hand, now)

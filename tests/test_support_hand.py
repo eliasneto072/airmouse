@@ -18,7 +18,7 @@ HAND_LENGTH_X = SCALE * 720 / 1280
 
 
 class Rig:
-    def __init__(self, dominant="right"):
+    def __init__(self, dominant="right", attention=None):
         self.clock = FakeClock()
         self.actuator = FakeActuator()
         self.actuator.pos = (960, 540)
@@ -31,6 +31,7 @@ class Rig:
             enabled=("move", "scroll", "shortcuts", "media", "windows"),
             start_needs_fist=("windows",),
             support_hand=True,
+            attention=attention,
             clock=self.clock,
         )
 
@@ -205,3 +206,13 @@ def test_hud_shows_support_state():
     rig.arm()
     rig.frames(0.5, left="peace")
     assert rig.modal.status.support == "ALT+TAB"
+
+
+def test_left_hand_ignored_while_not_looking():
+    from tests.test_modal import FakeAttention
+
+    att = FakeAttention()
+    att.facing = att.looking = False
+    rig = Rig(attention=att)
+    rig.frames(0.6, right=None, left="peace")
+    assert "alt" not in rig.held

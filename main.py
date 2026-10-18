@@ -187,7 +187,7 @@ def run() -> None:
                 none_count = 0
 
                 hands = tracker.process(frame)
-                processor.process(hands)
+                processor.process(hands, frame)
 
                 if DEBUG_GESTURES:
                     annotated = draw_debug_frame(frame, hands, processor.right_state)

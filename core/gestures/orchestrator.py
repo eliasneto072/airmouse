@@ -9,6 +9,7 @@ the old GestureProcessor.process(landmarks: list[Landmark]).
 import logging
 
 from config import (
+    ATTENTION_GATE,
     HUD_ENABLED,
     INTERACTION_MODE,
     LEFT_HAND_ENABLED,
@@ -54,7 +55,7 @@ class GestureOrchestrator:
             "on" if two_hand_enabled else "off",
         )
 
-    def process(self, hands: HandsResult) -> None:
+    def process(self, hands: HandsResult, frame=None) -> None:
         """Process one frame. Call once per frame regardless of hand visibility."""
         self._right.process(hands.right)
 
@@ -80,6 +81,7 @@ def build_orchestrator(
     mode: str = INTERACTION_MODE,
     hud_enabled: bool = HUD_ENABLED,
     sounds_enabled: bool = SOUNDS_ENABLED,
+    attention_gate: str = ATTENTION_GATE,
 ):
     """Create the gesture pipeline selected by INTERACTION_MODE ("classic" or "modal")."""
     if mode == "classic":
@@ -94,5 +96,21 @@ def build_orchestrator(
             hud = Hud()
             hud.start()
         sounds = Sounds() if sounds_enabled else None
-        return ModalOrchestrator(actuator, desktop, trackpad, hud=hud, sounds=sounds)
+        attention = None
+        if attention_gate != "off":
+            try:
+                from core.attention import Attention
+                from core.face_tracker import AttentionGate, FaceTracker
+
+                attention = AttentionGate(FaceTracker(), Attention())
+            except Exception as exc:
+                logger.warning(
+                    "Attention gate disabled (%s). To enable it, download the face model to "
+                    "models/face_landmarker.task (see README) or set ATTENTION_GATE = \"off\".",
+                    exc,
+                )
+                attention_gate = "off"
+        return ModalOrchestrator(
+            actuator, desktop, trackpad, hud=hud, sounds=sounds, attention=attention, attention_gate=attention_gate
+        )
     raise ValueError(f"INTERACTION_MODE must be 'classic' or 'modal', not {mode!r}")

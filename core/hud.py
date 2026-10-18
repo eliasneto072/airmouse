@@ -50,6 +50,10 @@ def _pending_text(status: ModalStatus) -> tuple[str, str]:
     """(text, color) describing the hold in progress."""
     if status.pending == "choose":
         return "show 1–5 fingers", MUTED
+    if status.pending == "look":
+        return "look at the screen", MUTED
+    if status.pending == "away":
+        return "not looking", MUTED
     if status.pending == "disarm":
         return "paused · hold = off", STYLE[Mode.DISARMED][1]
     if status.pending:
