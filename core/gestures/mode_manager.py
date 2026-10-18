@@ -2,13 +2,17 @@
 """
 Global state machine of the modal interaction layer.
 
-    DISARMED ── hold ☝️ still ARM_HOLD_S ──► MOVE
-    armed    ── hold N fingers MODE_SWITCH_HOLD_S ──► mode N (1 MOVE, 2 SCROLL, 3 SHORTCUTS, 4 MEDIA)
-    armed    ── fist ──► paused (mode suspended; reopen the hand to resume)
-    paused   ── fist held DISARM_HOLD_S ──► DISARMED
-    armed    ── hand out of frame AUTO_DISARM_S ──► DISARMED
+    OFF ── ☝️ held still ARM_HOLD_S ─────────────────────────────► MOVE
+    OFF ── fist, then 1–4 fingers held still MODE_SELECT_HOLD_S ──► MOVE / SCROLL / SHORTCUTS / MEDIA
+    mode ── fist ──► paused (open the hand to continue the same mode)
+    mode ── fist held DISARM_HOLD_S, or hand out of view AUTO_DISARM_S ──► OFF
 
-While DISARMED nothing is sent to the OS, whatever the hand does.
+Modes are locked: while a mode is active, the shape of the hand never switches
+to another mode (an open palm in MOVE keeps moving the cursor). Changing mode
+is always deliberate: hold a fist until OFF, then show the new number — one
+continuous gesture.
+
+While OFF nothing is sent to the OS, whatever the hand does.
 """
 
 from __future__ import annotations
@@ -25,7 +29,8 @@ from config import (
     AUTO_DISARM_S,
     DISARM_HOLD_S,
     HAND_LOST_RELEASE_S,
-    MODE_SWITCH_HOLD_S,
+    MODE_SELECT_HOLD_S,
+    MODE_SELECT_WINDOW_S,
     MODES_ENABLED,
 )
 from core.gestures.modes.base import ModeHandler
@@ -53,7 +58,7 @@ class ModalStatus:
     mode: Mode
     paused: bool
     hand_visible: bool
-    pending: str | None   # "arm", "disarm" or the name of the mode being switched to
+    pending: str | None   # "choose", "disarm" or the name of the mode being started
     progress: float       # 0..1 progress of the pending hold
 
 
@@ -66,7 +71,8 @@ class ModeManager:
         on_event: Callable[[str, Mode], None] | None = None,
         arm_hold_s: float = ARM_HOLD_S,
         arm_stillness: float = ARM_STILLNESS,
-        switch_hold_s: float = MODE_SWITCH_HOLD_S,
+        select_window_s: float = MODE_SELECT_WINDOW_S,
+        select_hold_s: float = MODE_SELECT_HOLD_S,
         disarm_hold_s: float = DISARM_HOLD_S,
         auto_disarm_s: float = AUTO_DISARM_S,
         hand_lost_release_s: float = HAND_LOST_RELEASE_S,
@@ -76,13 +82,11 @@ class ModeManager:
         self._enabled = {Mode(name) for name in enabled} & set(handlers)
         if not self._enabled:
             raise ValueError("MODES_ENABLED must contain at least one mode")
-        self._first_mode = Mode.MOVE if Mode.MOVE in self._enabled else next(
-            m for m in MODE_FOR_FINGERS.values() if m in self._enabled
-        )
         self._on_event = on_event or (lambda event, mode: None)
         self._arm_hold_s = arm_hold_s
         self._arm_stillness = arm_stillness
-        self._switch_hold_s = switch_hold_s
+        self._select_window_s = select_window_s
+        self._select_hold_s = select_hold_s
         self._disarm_hold_s = disarm_hold_s
         self._auto_disarm_s = auto_disarm_s
         self._hand_lost_release_s = hand_lost_release_s
@@ -91,10 +95,15 @@ class ModeManager:
         self.mode = Mode.DISARMED
         self.paused = False
         self._hand_visible = False
-        self._hold_target: str | Mode | None = None
+        # Pending hold (OFF → mode, or fist → OFF)
+        self._hold_target: Mode | str | None = None
         self._hold_since = 0.0
+        self._hold_needed = 0.0
         self._hold_origin: tuple[float, float] | None = None
         self._hold_progress = 0.0
+        # OFF: a fist "primes" mode selection for MODE_SELECT_WINDOW_S after it opens
+        self._fist_closed = False
+        self._primed_until: float | None = None
         self._fist_since = 0.0
         self._lost_since: float | None = None
         self._released_on_loss = False
@@ -103,10 +112,9 @@ class ModeManager:
 
     @property
     def status(self) -> ModalStatus:
-        pending: str | None = None
         if isinstance(self._hold_target, Mode):
-            pending = self._hold_target.value
-        elif self._hold_target is not None:
+            pending: str | None = self._hold_target.value
+        else:
             pending = self._hold_target
         return ModalStatus(self.mode, self.paused, self._hand_visible, pending, self._hold_progress)
 
@@ -122,7 +130,7 @@ class ModeManager:
         self.mode = Mode.DISARMED
         self.paused = False
         self._clear_hold()
-        logger.info("Disarmed")
+        logger.info("Off")
         self._on_event("disarm", self.mode)
 
     def process(self, hand: HandPose | None, now: float) -> None:
@@ -140,20 +148,21 @@ class ModeManager:
         pose = self._stabilizer.update(hand.pose, now)
 
         if self.mode == Mode.DISARMED:
-            self._process_disarmed(hand, pose, now)
+            self._process_off(hand, pose, now)
             return
 
         if pose == Pose.FIST and not hand.any_pinch:
             if not self.paused:
                 self.paused = True
                 self._fist_since = now
-                self._clear_hold()
                 self.handler.pause(now)
                 self._on_event("pause", self.mode)
             self._hold_target = "disarm"
             self._hold_progress = min(1.0, (now - self._fist_since) / self._disarm_hold_s)
             if now - self._fist_since >= self._disarm_hold_s:
                 self.disarm()
+                # The fist is still closed: opening it into 1–4 fingers picks the next mode.
+                self._fist_closed = True
             return
 
         if self.paused:
@@ -162,8 +171,7 @@ class ModeManager:
             self.handler.resume(hand, now)
             self._on_event("resume", self.mode)
 
-        if self._update_switch(hand, pose, now):
-            return
+        # Locked: whatever the hand shape, it belongs to the current mode.
         self.handler.process(hand, pose, now)
 
     # ── Internals ─────────────────────────────────────────────────────────────
@@ -173,59 +181,57 @@ class ModeManager:
         self._hold_origin = None
         self._hold_progress = 0.0
 
-    def _process_disarmed(self, hand: HandPose, pose: Pose, now: float) -> None:
-        if pose != Pose.ONE or hand.any_pinch:
+    def _process_off(self, hand: HandPose, pose: Pose, now: float) -> None:
+        if pose == Pose.FIST:
+            self._fist_closed = True
+            self._primed_until = None
             self._clear_hold()
             return
+        if self._fist_closed:  # the fist just opened
+            self._fist_closed = False
+            self._primed_until = now + self._select_window_s
+
+        primed = self._primed_until is not None and now <= self._primed_until
+        target = MODE_FOR_FINGERS.get(POSE_FINGER_COUNT.get(pose, 0))
+        if target not in self._enabled or hand.any_pinch:
+            target = None
+        already_holding = target is not None and self._hold_target == target
+        if target is not None and target is not Mode.MOVE and not primed and not already_holding:
+            target = None  # 2–4 fingers only count right after a fist (a resting open hand must not start MEDIA)
+
+        if target is None:
+            self._clear_hold()
+            if primed:
+                self._hold_target = "choose"
+            return
+
         moved = (
             self._hold_origin is not None
             and math.dist(hand.wrist, self._hold_origin) / hand.scale > self._arm_stillness
         )
-        if self._hold_target != "arm" or moved:
-            self._hold_target = "arm"
+        if self._hold_target != target or moved:
+            self._hold_target = target
             self._hold_since = now
+            self._hold_needed = self._select_hold_s if primed else self._arm_hold_s
             self._hold_origin = hand.wrist
             self._hold_progress = 0.0
             return
-        self._hold_progress = min(1.0, (now - self._hold_since) / self._arm_hold_s)
-        if now - self._hold_since >= self._arm_hold_s:
+
+        self._hold_progress = min(1.0, (now - self._hold_since) / self._hold_needed)
+        if now - self._hold_since >= self._hold_needed:
             self._clear_hold()
-            self.mode = self._first_mode
+            self._primed_until = None
+            self.mode = target
             self.paused = False
             self.handler.enter(hand, now)
-            logger.info("Armed → %s", self.mode.name)
+            logger.info("Mode → %s", self.mode.name)
             self._on_event("arm", self.mode)
-
-    def _update_switch(self, hand: HandPose, pose: Pose, now: float) -> bool:
-        target = MODE_FOR_FINGERS.get(POSE_FINGER_COUNT.get(pose, 0))
-        if (
-            target is None
-            or target == self.mode
-            or target not in self._enabled
-            or hand.any_pinch
-            or self.handler.busy
-        ):
-            self._clear_hold()
-            return False
-        if self._hold_target != target:
-            self._hold_target = target
-            self._hold_since = now
-            self._hold_progress = 0.0
-            return False
-        self._hold_progress = min(1.0, (now - self._hold_since) / self._switch_hold_s)
-        if now - self._hold_since < self._switch_hold_s:
-            return False
-        self._clear_hold()
-        self.handler.exit()
-        self.mode = target
-        self.handler.enter(hand, now)
-        logger.info("Mode → %s", self.mode.name)
-        self._on_event("switch", self.mode)
-        return True
 
     def _no_hand(self, now: float) -> None:
         self._hand_visible = False
         self._clear_hold()
+        self._fist_closed = False
+        self._primed_until = None
         if self._lost_since is None:
             self._lost_since = now
         if self.mode == Mode.DISARMED:

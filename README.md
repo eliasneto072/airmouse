@@ -132,32 +132,32 @@ Activated only when both hands are visible.
 
 ## Modal Mode *(opt-in)*
 
-In the classic mode every hand movement is a command, so scratching your face or reaching for a mug moves the cursor and clicks. Modal mode starts **OFF** and ignores your hands until you ask for control, then lets you switch between focused modes.
+In the classic mode every hand movement is a command, so scratching your face or reaching for a mug moves the cursor and clicks. Modal mode starts **OFF** and ignores your hands until you pick a mode. Once a mode is on it is **locked**: any hand shape belongs to that mode (an open palm in MOVE keeps moving the cursor), so nothing switches by accident.
 
 ```python
 # config_local.py (git-ignored) — or edit config.py
 INTERACTION_MODE = "modal"
 ```
 
-### Turning it on and switching modes
+### Picking a mode, pausing, turning off
 
 | Gesture (right hand) | Effect |
 |----------------------|--------|
-| Hold ☝️ (index only) **still** for 0.6 s | Turn on → MOVE |
-| Hold **1 / 2 / 3 / 4** fingers for 0.6 s | Switch to MOVE / SCROLL / SHORTCUTS / MEDIA |
+| *(OFF)* Hold ☝️ (index only) **still** for 0.6 s | MOVE |
+| *(OFF)* Make a fist, then show **1 / 2 / 3 / 4** fingers and hold them still for 0.4 s | MOVE / SCROLL / SHORTCUTS / MEDIA |
 | Fist | Pause the current mode — open the hand to continue |
-| Fist held 1.5 s, or hand out of view for 2 s | Turn off |
+| Fist held 1.2 s, or hand out of view for 2 s | Turn off |
 
-Fingers are counted from index to pinky; the thumb is ignored.
+To change mode in one motion: hold a fist until the beep (OFF), then open straight into the new number. Fingers are counted from index to pinky; the thumb is ignored. A resting open hand never starts a mode — 2–4 fingers only count right after a fist.
 
 ### Modes
 
 | Mode | Gestures |
 |------|----------|
-| **☝️ MOVE** | Move the hand → cursor (trackpad-style: small slow moves are precise, quick moves travel far) · thumb taps index → click · two taps → double click · pinch and hold 0.4 s → drag · thumb taps middle → right click · fist → lift the "mouse" and reposition your hand |
-| **✌️ SCROLL** | Where you make the ✌️ is the center: hand above / below it scrolls up / down, left / right scrolls sideways, further = faster · pinch + up / down → zoom |
-| **3 fingers SHORTCUTS** | Quick flick right / left → next / previous tab · up → `Alt+Tab` · down → show desktop · thumb taps index → `Enter` · thumb taps middle → `Esc` |
-| **4 fingers MEDIA** | Hand above / below the center → volume up / down · thumb taps index → play / pause · thumb taps middle → mute · flick left / right → previous / next track |
+| **1 · MOVE** | Move the hand → cursor (trackpad-style: small slow moves are precise, quick moves travel far) · thumb taps index → click · two taps → double click · pinch and hold 0.4 s → drag · thumb taps middle → right click · fist → lift the "mouse" and reposition your hand |
+| **2 · SCROLL** | Where the hand is when the mode starts is the center: hand above / below it scrolls up / down, left / right scrolls sideways, further = faster · pinch + up / down → zoom |
+| **3 · SHORTCUTS** | Quick flick right / left → next / previous tab · up → `Alt+Tab` · down → show desktop · thumb taps index → `Enter` · thumb taps middle → `Esc` |
+| **4 · MEDIA** | Hand above / below the center → volume up / down · thumb taps index → play / pause · thumb taps middle → mute · flick left / right → previous / next track |
 
 Shortcut and media gestures are remappable in `SHORTCUT_BINDINGS` / `MEDIA_BINDINGS` (action names in `core/actions.py`). `MODES_ENABLED` turns modes off.
 
@@ -180,8 +180,9 @@ All parameters live in `config.py` — never scattered across modules. Personal 
 | Quick moves don't travel far enough | `POINTER_ACCEL`, `POINTER_MAX_GAIN` | Increase |
 | Cursor creeps when the hand is still | `POINTER_MIN_SPEED` | Increase → try `0.1` |
 | Prefer "hand position = screen position" | `CURSOR_MAPPING` | `"absolute"` |
-| Arms too easily / too slowly | `ARM_HOLD_S`, `ARM_STILLNESS` | Increase / decrease |
-| Mode switches by accident | `MODE_SWITCH_HOLD_S` | Increase → try `0.8` |
+| Turns on too easily / too slowly | `ARM_HOLD_S`, `MODE_SELECT_HOLD_S`, `ARM_STILLNESS` | Increase / decrease |
+| Not enough time to show the number after the fist | `MODE_SELECT_WINDOW_S` | Increase → try `2.0` |
+| Turns off while repositioning with a fist | `DISARM_HOLD_S` | Increase → try `1.6` |
 | Clicks not registering | `PINCH_INDEX_ENTER_RATIO` | Increase → try `0.35` |
 | Accidental clicks | `PINCH_INDEX_ENTER_RATIO` | Decrease → try `0.25` |
 | Scroll too fast / slow | `SCROLL_SPEED`, `SCROLL_DEADZONE` | Adjust |

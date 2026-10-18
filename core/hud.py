@@ -1,7 +1,7 @@
 # core/hud.py
 """
 On-screen HUD for the modal mode: a small always-on-top label with the current
-mode, the progress of a pending hold (arming, switching, disarming) and whether
+mode, the progress of a pending hold (starting a mode, turning off) and whether
 the hand is visible. It is click-through and hidden from the taskbar.
 
 The HUD runs its own Tk event loop in a daemon thread. update() only stores the
@@ -46,8 +46,8 @@ _WS_EX_NOACTIVATE = 0x08000000
 
 def _pending_text(status: ModalStatus) -> tuple[str, str]:
     """(text, color) describing the hold in progress."""
-    if status.pending == "arm":
-        return "arming…", STYLE[Mode.MOVE][1]
+    if status.pending == "choose":
+        return "show 1–4 fingers", MUTED
     if status.pending == "disarm":
         return "paused · hold = off", STYLE[Mode.DISARMED][1]
     if status.pending:

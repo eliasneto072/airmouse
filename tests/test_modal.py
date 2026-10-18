@@ -69,7 +69,10 @@ class Rig:
         self.hold(DT * 2, pose=pose, center=center)
 
     def switch(self, pose):
-        self.hold(0.9, pose=pose)
+        """Hold a fist until OFF, then open straight into the new number."""
+        self.hold(1.4, pose="fist")
+        assert self.mode == Mode.DISARMED
+        self.hold(0.7, pose=pose)
 
 
 def above(dy_hand_lengths, base=HOME):
@@ -257,7 +260,7 @@ def test_disabled_mode_is_never_entered():
     rig = Rig(enabled=("move", "scroll"))
     rig.arm()
     rig.switch("four")
-    assert rig.mode == Mode.MOVE
+    assert rig.mode == Mode.DISARMED
 
 
 def test_back_to_move_from_scroll():
@@ -266,4 +269,58 @@ def test_back_to_move_from_scroll():
     rig.switch("peace")
     rig.switch("point")
     assert rig.mode == Mode.MOVE
-    assert rig.sounds == ["arm", "switch", "switch"]
+    assert [e for e in rig.sounds if e != "pause"] == ["arm", "disarm", "arm", "disarm", "arm"]
+
+
+# ── Locked modes and choosing a mode ──────────────────────────────────────────
+
+def test_modes_are_locked_open_palm_keeps_moving():
+    rig = Rig()
+    rig.arm()
+    rig.hold(2.0, pose="open")                 # would have been MEDIA before
+    rig.hold(1.0, pose="peace")
+    rig.hold(1.0, pose="three")
+    assert rig.mode == Mode.MOVE
+    before = rig.actuator.pos
+    rig.hold(0.5, pose="open", end=users_right(0.6))
+    assert rig.actuator.pos[0] > before[0] + 100  # the open palm drives the cursor
+
+
+def test_scroll_works_with_any_hand_shape():
+    rig = Rig()
+    rig.arm()
+    rig.switch("peace")
+    rig.hold(0.2, pose="open", end=above(0.8))
+    rig.hold(0.5, pose="open", center=above(0.8))
+    assert rig.mode == Mode.SCROLL
+    assert rig.actuator.total("scroll") > 0
+
+
+def test_resting_open_hand_does_not_start_a_mode():
+    rig = Rig()
+    rig.hold(3.0, pose="open")
+    rig.hold(3.0, pose="peace")
+    assert rig.mode == Mode.DISARMED
+    assert rig.actuator.calls == []
+
+
+def test_fist_then_number_starts_that_mode():
+    rig = Rig()
+    rig.hold(0.3, pose="fist")
+    rig.hold(0.6, pose="three")
+    assert rig.mode == Mode.SHORTCUTS
+
+
+def test_number_shown_too_late_after_fist_is_ignored():
+    rig = Rig()
+    rig.hold(0.3, pose="fist")
+    rig.hold(1.8, pose="point", center=(0.6, 0.8), end=(0.3, 0.8))  # moving: no arm
+    rig.hold(1.0, pose="peace")
+    assert rig.mode == Mode.DISARMED
+
+
+def test_moving_number_after_fist_does_not_select():
+    rig = Rig()
+    rig.hold(0.3, pose="fist")
+    rig.hold(1.4, pose="four", center=(0.6, 0.8), end=(0.3, 0.8))
+    assert rig.mode == Mode.DISARMED

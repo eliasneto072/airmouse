@@ -12,14 +12,13 @@ from core.gestures.poses import HandPose, Pose
 
 class MediaMode(ModeHandler):
     """
-    Open hand (4 fingers). Hand above / below where the mode started raises /
-    lowers the volume (further = faster). Left / right flicks and thumb taps fire
-    MEDIA_BINDINGS (previous / next track, play / pause, mute by default).
+    Hand above / below where the mode started raises / lowers the volume
+    (further = faster). Left / right flicks and thumb taps fire MEDIA_BINDINGS
+    (previous / next track, play / pause, mute by default). Any hand shape works
+    (the mode is locked).
     """
 
     name = "media"
-    # Thumb–index pinch with the other fingers extended is classified as OK.
-    poses = (Pose.FOUR, Pose.OK)
 
     def __init__(self, actuator, bindings: dict[str, str | None] | None = None) -> None:
         self._actuator = actuator
@@ -50,11 +49,6 @@ class MediaMode(ModeHandler):
         self._last = now
         if self._center is None:
             self._center = hand.anchor
-        if pose not in self.poses:
-            self._volume.reset()
-            self._swipes.reset()
-            self._pinches.update(hand)
-            return
 
         swipe = self._swipes.update(hand, now)
         if swipe in ("swipe_left", "swipe_right"):

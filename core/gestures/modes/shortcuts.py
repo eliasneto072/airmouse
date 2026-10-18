@@ -12,13 +12,12 @@ from core.gestures.poses import HandPose, Pose
 
 class ShortcutsMode(ModeHandler):
     """
-    With 3 fingers held: a quick flick left / right / up / down or a thumb tap on
-    the index / middle fires the bound action (SHORTCUT_BINDINGS). One-handed
-    replacement for keyboard shortcuts while reclined.
+    A quick flick left / right / up / down or a thumb tap on the index / middle
+    fires the bound action (SHORTCUT_BINDINGS), with any hand shape (the mode is
+    locked). One-handed replacement for keyboard shortcuts while reclined.
     """
 
     name = "shortcuts"
-    poses = (Pose.THREE,)
 
     def __init__(self, actuator, bindings: dict[str, str | None] | None = None) -> None:
         self._actuator = actuator
@@ -37,10 +36,6 @@ class ShortcutsMode(ModeHandler):
         self._pinches.reset()
 
     def process(self, hand: HandPose, pose: Pose, now: float) -> None:
-        if pose not in self.poses:
-            self._swipes.reset()
-            self._pinches.update(hand)
-            return
         swipe = self._swipes.update(hand, now)
         if swipe:
             run_action(self._actuator, self._bindings.get(swipe))

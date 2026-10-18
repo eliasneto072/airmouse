@@ -71,17 +71,20 @@ LOCK_SCREEN_HOLD_S  = 1.0         # both fists held this long → Win+L
 
 # ── Interaction mode ──────────────────────────────────────────────────────────
 # "classic": the original always-on gesture set (README → Gesture Guide).
-# "modal":   starts DISARMED and ignores the hands until you hold ☝️ still; then
-#            hold 1–4 fingers to switch between MOVE, SCROLL, SHORTCUTS and MEDIA
-#            (README → Modal Mode). The left hand is not used in modal mode yet.
+# "modal":   starts OFF and ignores the hands until you pick a mode: ☝️ held still
+#            starts MOVE, or make a fist and then show 1–4 fingers for MOVE, SCROLL,
+#            SHORTCUTS or MEDIA. Once in a mode it stays locked — any hand shape
+#            works — until you hold a fist to turn it off (README → Modal Mode).
+#            The left hand is not used in modal mode yet.
 INTERACTION_MODE = "classic"
 MODES_ENABLED = ("move", "scroll", "shortcuts", "media")
 
-# ── Modal: arming, switching, disarming ───────────────────────────────────────
-ARM_HOLD_S = 0.6                  # hold ☝️ this long to arm…
-ARM_STILLNESS = 0.25              # …without the wrist moving more than this (hand lengths)
-MODE_SWITCH_HOLD_S = 0.6          # hold 1–4 fingers this long to switch mode
-DISARM_HOLD_S = 1.5               # hold a fist this long to disarm (a shorter fist = pause)
+# ── Modal: turning on, choosing a mode, turning off ───────────────────────────
+ARM_HOLD_S = 0.6                  # OFF: hold ☝️ still this long → MOVE
+ARM_STILLNESS = 0.25              # holds are restarted if the wrist moves more than this (hand lengths)
+MODE_SELECT_WINDOW_S = 1.5        # OFF: after a fist, show 1–4 fingers within this time…
+MODE_SELECT_HOLD_S = 0.4          # …and hold them still this long to start that mode
+DISARM_HOLD_S = 1.2               # in a mode: hold a fist this long → OFF (a shorter fist = pause)
 AUTO_DISARM_S = 2.0               # hand out of frame this long → disarm
 HAND_LOST_RELEASE_S = 0.3         # hand out of frame this long → release drag/keys
 

@@ -20,10 +20,10 @@ from core.gestures.poses import HandPose, Pose
 class ScrollMode(ModeHandler):
     """
     Where the hand is when the mode starts (or resumes after a fist) is the
-    center. With ✌️ held, the hand above / below the center scrolls up / down,
-    left / right scrolls horizontally (dominant axis only); further from the
-    center = faster. Pinching thumb + index turns up / down into zoom in / out.
-    The cursor does not move in this mode.
+    center. The hand above / below the center scrolls up / down, left / right
+    scrolls horizontally (dominant axis only); further from the center = faster.
+    Any hand shape works (the mode is locked). Pinching thumb + index turns
+    up / down into zoom in / out. The cursor does not move in this mode.
     """
 
     name = "scroll"
@@ -56,9 +56,6 @@ class ScrollMode(ModeHandler):
         self._last = now
         if self._center is None:
             self._center = hand.anchor
-        if pose != Pose.TWO and not hand.pinch_index:
-            self._reset_rates()
-            return
 
         # Displacement from the center in hand lengths; y grows downwards.
         dx = (hand.anchor[0] - self._center[0]) / hand.scale
