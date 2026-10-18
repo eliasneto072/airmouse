@@ -21,7 +21,7 @@ class Rig:
     def __init__(
         self,
         enabled=("move", "scroll", "shortcuts", "media", "windows"),
-        start_needs_fist=False,
+        start_needs_fist=("windows",),
         scroll_style="stroke",
     ):
         self.clock = FakeClock()
@@ -328,15 +328,29 @@ def test_scroll_works_with_any_hand_shape():
     assert rig.actuator.total("scroll") > 0
 
 
-def test_any_number_held_still_starts_its_mode():
-    for pose, mode in [("peace", Mode.SCROLL), ("three", Mode.SHORTCUTS), ("four", Mode.MEDIA), ("open", Mode.WINDOWS)]:
+def test_numbers_one_to_four_held_still_start_their_mode():
+    for pose, mode in [("point", Mode.MOVE), ("peace", Mode.SCROLL), ("three", Mode.SHORTCUTS), ("four", Mode.MEDIA)]:
         rig = Rig()
         rig.hold(0.9, pose=pose)
         assert rig.mode == mode, pose
 
 
-def test_with_start_needs_fist_a_resting_open_hand_does_not_start_a_mode():
-    rig = Rig(start_needs_fist=True)
+def test_resting_open_hand_does_not_start_windows():
+    rig = Rig()
+    rig.hold(5.0, pose="open")
+    assert rig.mode == Mode.DISARMED
+    assert rig.actuator.calls == []
+
+
+def test_fist_then_open_hand_starts_windows():
+    rig = Rig()
+    rig.hold(0.3, pose="fist")
+    rig.hold(0.6, pose="open")
+    assert rig.mode == Mode.WINDOWS
+
+
+def test_every_mode_can_require_the_fist_first():
+    rig = Rig(start_needs_fist=("scroll", "shortcuts", "media", "windows"))
     rig.hold(3.0, pose="open")
     rig.hold(3.0, pose="peace")
     assert rig.mode == Mode.DISARMED
@@ -351,7 +365,7 @@ def test_fist_then_number_starts_that_mode():
 
 
 def test_number_shown_too_late_after_fist_is_ignored():
-    rig = Rig(start_needs_fist=True)
+    rig = Rig(start_needs_fist=("scroll", "shortcuts", "media", "windows"))
     rig.hold(0.3, pose="fist")
     rig.hold(1.8, pose="point", center=(0.6, 0.8), end=(0.3, 0.8))  # moving: no arm
     rig.hold(1.0, pose="peace")
@@ -359,7 +373,7 @@ def test_number_shown_too_late_after_fist_is_ignored():
 
 
 def test_moving_number_after_fist_does_not_select():
-    rig = Rig(start_needs_fist=True)
+    rig = Rig(start_needs_fist=("scroll", "shortcuts", "media", "windows"))
     rig.hold(0.3, pose="fist")
     rig.hold(1.4, pose="four", center=(0.6, 0.8), end=(0.3, 0.8))
     assert rig.mode == Mode.DISARMED
@@ -385,7 +399,8 @@ def test_open_palm_is_five_and_four_is_media():
 
 def test_windows_mode_swipes():
     rig = Rig()
-    rig.hold(0.9, pose="open")
+    rig.hold(0.3, pose="fist")
+    rig.hold(0.6, pose="open")
     assert rig.mode == Mode.WINDOWS
     rig.hold(0.1, pose="open", end=users_right(0.8))
     rig.hold(0.4, pose="open", center=users_right(0.8))

@@ -10,8 +10,8 @@ Global state machine of the modal interaction layer.
 Modes are locked: while a mode is active, the shape of the hand never switches
 to another mode (an open palm in MOVE keeps moving the cursor). Changing mode
 is always deliberate: hold a fist until OFF, then show the new number — one
-continuous gesture. With MODE_START_NEEDS_FIST, 2–5 fingers only start a mode
-right after a fist (for setups where a resting open hand is in view).
+continuous gesture. Modes listed in MODE_START_NEEDS_FIST (WINDOWS by default:
+an open hand is how a resting hand looks) only start right after a fist.
 
 While OFF nothing is sent to the OS, whatever the hand does.
 """
@@ -76,7 +76,7 @@ class ModeManager:
         arm_stillness: float = ARM_STILLNESS,
         select_window_s: float = MODE_SELECT_WINDOW_S,
         select_hold_s: float = MODE_SELECT_HOLD_S,
-        start_needs_fist: bool = MODE_START_NEEDS_FIST,
+        start_needs_fist: tuple[str, ...] = MODE_START_NEEDS_FIST,
         disarm_hold_s: float = DISARM_HOLD_S,
         auto_disarm_s: float = AUTO_DISARM_S,
         hand_lost_release_s: float = HAND_LOST_RELEASE_S,
@@ -91,7 +91,7 @@ class ModeManager:
         self._arm_stillness = arm_stillness
         self._select_window_s = select_window_s
         self._select_hold_s = select_hold_s
-        self._start_needs_fist = start_needs_fist
+        self._needs_fist = {Mode(name) for name in start_needs_fist} - {Mode.MOVE}
         self._disarm_hold_s = disarm_hold_s
         self._auto_disarm_s = auto_disarm_s
         self._hand_lost_release_s = hand_lost_release_s
@@ -201,14 +201,8 @@ class ModeManager:
         if target not in self._enabled or hand.any_pinch:
             target = None
         already_holding = target is not None and self._hold_target == target
-        if (
-            self._start_needs_fist
-            and target is not None
-            and target is not Mode.MOVE
-            and not primed
-            and not already_holding
-        ):
-            target = None  # 2–5 fingers only count right after a fist
+        if target in self._needs_fist and not primed and not already_holding:
+            target = None  # this mode only starts right after a fist
 
         if target is None:
             self._clear_hold()

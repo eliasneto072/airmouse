@@ -143,12 +143,12 @@ INTERACTION_MODE = "modal"
 
 | Gesture (right hand) | Effect |
 |----------------------|--------|
-| *(OFF)* Hold **1 / 2 / 3 / 4 / 5** fingers **still** for 0.6 s | MOVE / SCROLL / SHORTCUTS / MEDIA / WINDOWS |
-| *(OFF)* Right after a fist, the same numbers need only 0.4 s | (same) |
+| *(OFF)* Hold **1 / 2 / 3 / 4** fingers **still** for 0.6 s | MOVE / SCROLL / SHORTCUTS / MEDIA |
+| *(OFF)* Make a fist, then show **1–5** fingers still for 0.4 s | the same, or **5 → WINDOWS** |
 | Fist | Pause the current mode — open the hand to continue |
 | Fist held 1.2 s, or hand out of view for 2 s | Turn off |
 
-To change mode in one motion: hold a fist until the beep (OFF), then open straight into the new number. Fingers are counted from index to pinky; **4** is four fingers with the thumb folded into the palm, **5** is the open hand with the thumb out. If a resting open hand in view starts modes by accident, set `MODE_START_NEEDS_FIST = True`: then 2–5 only count right after a fist.
+To change mode in one motion: hold a fist until the beep (OFF), then open straight into the new number. Fingers are counted from index to pinky; **4** is four fingers with the thumb folded into the palm, **5** is the open hand with the thumb out. Because an open hand is also how a resting hand looks, WINDOWS only starts right after a fist; `MODE_START_NEEDS_FIST` lists the modes with that rule (add others if they start by accident, or set `()` to start everything directly).
 
 ### Modes
 
@@ -182,7 +182,7 @@ All parameters live in `config.py` — never scattered across modules. Personal 
 | Cursor creeps when the hand is still | `POINTER_MIN_SPEED` | Increase → try `0.1` |
 | Prefer "hand position = screen position" | `CURSOR_MAPPING` | `"absolute"` |
 | Turns on too easily / too slowly | `ARM_HOLD_S`, `MODE_SELECT_HOLD_S`, `ARM_STILLNESS` | Increase / decrease |
-| A resting hand starts modes | `MODE_START_NEEDS_FIST` | `True` |
+| A resting hand starts a mode | `MODE_START_NEEDS_FIST` | Add that mode, e.g. `("media", "windows")` |
 | Turns off while repositioning with a fist | `DISARM_HOLD_S` | Increase → try `1.6` |
 | 4 and 5 fingers mixed up | `THUMB_OUT_RATIO` | Lower if 5 reads as 4, raise if 4 reads as 5 |
 | Clicks not registering | `PINCH_INDEX_ENTER_RATIO` | Increase → try `0.35` |

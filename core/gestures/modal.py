@@ -40,7 +40,7 @@ class ModalOrchestrator:
         sounds=None,
         dominant_hand: str = DOMINANT_HAND,
         enabled: tuple[str, ...] = MODES_ENABLED,
-        start_needs_fist: bool = MODE_START_NEEDS_FIST,
+        start_needs_fist: tuple[str, ...] = MODE_START_NEEDS_FIST,
         scroll_style: str = SCROLL_STYLE,
         clock: Callable[[], float] = time.perf_counter,
     ) -> None:

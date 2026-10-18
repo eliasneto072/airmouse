@@ -72,7 +72,8 @@ LOCK_SCREEN_HOLD_S  = 1.0         # both fists held this long → Win+L
 # ── Interaction mode ──────────────────────────────────────────────────────────
 # "classic": the original always-on gesture set (README → Gesture Guide).
 # "modal":   starts OFF and ignores the hands until you pick a mode by holding
-#            1–5 fingers still: MOVE, SCROLL, SHORTCUTS, MEDIA, WINDOWS. Once in a
+#            1–5 fingers still: MOVE, SCROLL, SHORTCUTS, MEDIA, WINDOWS (5 only
+#            right after a fist — see MODE_START_NEEDS_FIST). Once in a
 #            mode it stays locked — any hand shape works — until you hold a fist
 #            to turn it off (README → Modal Mode). The left hand is not used in
 #            modal mode yet.
@@ -84,7 +85,10 @@ ARM_HOLD_S = 0.6                  # OFF: hold 1–5 fingers still this long → 
 ARM_STILLNESS = 0.25              # holds are restarted if the wrist moves more than this (hand lengths)
 MODE_SELECT_WINDOW_S = 1.5        # OFF: right after a fist, 1–5 fingers start a mode faster:
 MODE_SELECT_HOLD_S = 0.4          # …held still this long
-MODE_START_NEEDS_FIST = False     # True: 2–5 fingers only start a mode right after a fist (☝️ always works)
+# Modes that only start right after a fist. An open hand (5) is how a resting
+# hand looks, so WINDOWS needs the fist by default. Add "media", "shortcuts",
+# "scroll" for a stricter setup, or use () to start every mode directly.
+MODE_START_NEEDS_FIST = ("windows",)
 DISARM_HOLD_S = 1.2               # in a mode: hold a fist this long → OFF (a shorter fist = pause)
 AUTO_DISARM_S = 2.0               # hand out of frame this long → disarm
 HAND_LOST_RELEASE_S = 0.3         # hand out of frame this long → release drag/keys
