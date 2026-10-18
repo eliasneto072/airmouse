@@ -44,6 +44,8 @@ DRAG_HOLD_SECONDS = 0.4           # thumb+index pinch held → drag activates
 GESTURE_COOLDOWN_SECONDS = 0.4    # min gap between discrete gesture events
 
 DOUBLE_CLICK_WINDOW_S = 0.4       # second pinch within this window = double click
+                                  # keep below the Windows double-click time (500 ms default)
+PINCH_DEBOUNCE_S = 0.1            # a release this soon after a click is pinch jitter, not a tap
 
 # Fist detection — all finger tips must be below their PIP joints
 FIST_CURL_THRESHOLD = 0.0         # unused numerically; fist = all 5 curled (boolean)
