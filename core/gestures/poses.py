@@ -7,8 +7,9 @@ the 16:9 aspect ratio does not distort distances) and expressed in *hand lengths
 (wrist → middle-finger MCP). Thresholds therefore mean the same thing whether the
 hand is close to the camera or far away, and whether it is upright or tilted.
 
-Finger counting uses index → pinky only: MediaPipe's thumb extension is too
-unreliable to tell poses apart.
+Finger counting uses index → pinky; the thumb only matters to tell 4 (thumb
+folded into the palm) from 5 (open hand, thumb out), measured by how far the
+thumb tip is from the pinky knuckle.
 """
 
 from __future__ import annotations
@@ -23,6 +24,7 @@ from config import (
     CURSOR_ANCHOR_LANDMARK,
     FINGER_EXTEND_RATIO,
     FIST_TIP_RADIUS,
+    THUMB_OUT_RATIO,
     PINCH_INDEX_ENTER_RATIO,
     PINCH_INDEX_EXIT_RATIO,
     PINCH_MIDDLE_ENTER_RATIO,
@@ -30,7 +32,7 @@ from config import (
 )
 from core.tracker import Landmark
 
-WRIST, THUMB_TIP, MIDDLE_MCP = 0, 4, 9
+WRIST, THUMB_TIP, MIDDLE_MCP, PINKY_MCP = 0, 4, 9, 17
 INDEX_TIP, MIDDLE_TIP = 8, 12
 # (PIP, TIP) for index, middle, ring, pinky
 _FINGER_JOINTS = ((6, 8), (10, 12), (14, 16), (18, 20))
@@ -42,7 +44,8 @@ class Pose(Enum):
     ONE = "one"      # index
     TWO = "two"      # index + middle
     THREE = "three"  # index + middle + ring
-    FOUR = "four"    # index → pinky (open hand; thumb ignored)
+    FOUR = "four"    # index → pinky, thumb folded into the palm
+    FIVE = "five"    # open hand, thumb out
     OK = "ok"        # thumb–index pinch with middle, ring and pinky extended
 
 
@@ -53,7 +56,7 @@ FINGER_COUNT_POSES = {
     (True, True, True, True): Pose.FOUR,
 }
 
-POSE_FINGER_COUNT = {Pose.ONE: 1, Pose.TWO: 2, Pose.THREE: 3, Pose.FOUR: 4}
+POSE_FINGER_COUNT = {Pose.ONE: 1, Pose.TWO: 2, Pose.THREE: 3, Pose.FOUR: 4, Pose.FIVE: 5}
 
 
 @dataclass(frozen=True)
@@ -64,6 +67,8 @@ class HandPose:
     extended: tuple[bool, bool, bool, bool]  # index, middle, ring, pinky
     pinch_index: bool
     pinch_middle: bool
+    thumb_out: bool                    # thumb sticking out (5) rather than folded in (4)
+    folded: bool                       # all fingertips curled onto the palm (fist-like)
     scale: float                       # hand length in pixels
     anchor: tuple[float, float]        # cursor anchor, user space px (x grows to the user's right)
     wrist: tuple[float, float]         # user space px
@@ -135,12 +140,16 @@ class PoseClassifier:
         self._pinch_index = pinch_index
         self._pinch_middle = pinch_middle
 
+        thumb_out = math.dist(p[THUMB_TIP], p[PINKY_MCP]) / scale > THUMB_OUT_RATIO
+
         if not any(extended) and folded:
             pose = Pose.FIST
         elif self._pinch_index and extended[1:] == (True, True, True):
             pose = Pose.OK
         else:
             pose = FINGER_COUNT_POSES.get(extended, Pose.NONE)
+            if pose == Pose.FOUR and thumb_out:
+                pose = Pose.FIVE
 
         anchor_lm = landmarks[self._anchor]
         return HandPose(
@@ -148,6 +157,8 @@ class PoseClassifier:
             extended=extended,
             pinch_index=self._pinch_index,
             pinch_middle=self._pinch_middle,
+            thumb_out=thumb_out,
+            folded=folded,
             scale=scale,
             anchor=p[self._anchor],
             wrist=wrist,

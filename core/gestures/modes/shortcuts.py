@@ -13,16 +13,23 @@ from core.gestures.poses import HandPose, Pose
 class ShortcutsMode(ModeHandler):
     """
     A quick flick left / right / up / down or a thumb tap on the index / middle
-    fires the bound action (SHORTCUT_BINDINGS), with any hand shape (the mode is
-    locked). One-handed replacement for keyboard shortcuts while reclined.
+    fires the bound action, with any hand shape (the mode is locked). Used for
+    SHORTCUTS (SHORTCUT_BINDINGS) and WINDOWS (WINDOW_BINDINGS).
     """
 
     name = "shortcuts"
 
-    def __init__(self, actuator, bindings: dict[str, str | None] | None = None) -> None:
+    def __init__(
+        self,
+        actuator,
+        bindings: dict[str, str | None] | None = None,
+        name: str = "shortcuts",
+        setting: str = "SHORTCUT_BINDINGS",
+    ) -> None:
+        self.name = name
         self._actuator = actuator
         self._bindings = dict(SHORTCUT_BINDINGS if bindings is None else bindings)
-        validate_bindings(self._bindings, "SHORTCUT_BINDINGS")
+        validate_bindings(self._bindings, setting)
         self._swipes = SwipeDetector()
         self._pinches = PinchEdges()
 

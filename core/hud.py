@@ -34,6 +34,7 @@ STYLE: dict[Mode, tuple[str, str]] = {
     Mode.SCROLL: ("SCROLL", "#3fbf7f"),
     Mode.SHORTCUTS: ("SHORTCUTS", "#f2a33a"),
     Mode.MEDIA: ("MEDIA", "#a970ff"),
+    Mode.WINDOWS: ("WINDOWS", "#2bb3c0"),
 }
 
 # Win32 extended window styles
@@ -47,7 +48,7 @@ _WS_EX_NOACTIVATE = 0x08000000
 def _pending_text(status: ModalStatus) -> tuple[str, str]:
     """(text, color) describing the hold in progress."""
     if status.pending == "choose":
-        return "show 1–4 fingers", MUTED
+        return "show 1–5 fingers", MUTED
     if status.pending == "disarm":
         return "paused · hold = off", STYLE[Mode.DISARMED][1]
     if status.pending:

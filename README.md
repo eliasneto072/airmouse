@@ -143,23 +143,24 @@ INTERACTION_MODE = "modal"
 
 | Gesture (right hand) | Effect |
 |----------------------|--------|
-| *(OFF)* Hold ☝️ (index only) **still** for 0.6 s | MOVE |
-| *(OFF)* Make a fist, then show **1 / 2 / 3 / 4** fingers and hold them still for 0.4 s | MOVE / SCROLL / SHORTCUTS / MEDIA |
+| *(OFF)* Hold **1 / 2 / 3 / 4 / 5** fingers **still** for 0.6 s | MOVE / SCROLL / SHORTCUTS / MEDIA / WINDOWS |
+| *(OFF)* Right after a fist, the same numbers need only 0.4 s | (same) |
 | Fist | Pause the current mode — open the hand to continue |
 | Fist held 1.2 s, or hand out of view for 2 s | Turn off |
 
-To change mode in one motion: hold a fist until the beep (OFF), then open straight into the new number. Fingers are counted from index to pinky; the thumb is ignored. A resting open hand never starts a mode — 2–4 fingers only count right after a fist.
+To change mode in one motion: hold a fist until the beep (OFF), then open straight into the new number. Fingers are counted from index to pinky; **4** is four fingers with the thumb folded into the palm, **5** is the open hand with the thumb out. If a resting open hand in view starts modes by accident, set `MODE_START_NEEDS_FIST = True`: then 2–5 only count right after a fist.
 
 ### Modes
 
 | Mode | Gestures |
 |------|----------|
 | **1 · MOVE** | Move the hand → cursor (trackpad-style: small slow moves are precise, quick moves travel far) · thumb taps index → click · two taps → double click · pinch and hold 0.4 s → drag · thumb taps middle → right click · fist → lift the "mouse" and reposition your hand |
-| **2 · SCROLL** | Where the hand is when the mode starts is the center: hand above / below it scrolls up / down, left / right scrolls sideways, further = faster · pinch + up / down → zoom |
+| **2 · SCROLL** | Quick move of the hand up / down → scrolls up / down a bit (bigger move = more) · left / right → sideways · bring the hand back slowly and flick again · pinch + move up / down → zoom. `SCROLL_STYLE = "joystick"` scrolls continuously while the hand is above / below where the mode started |
 | **3 · SHORTCUTS** | Quick flick right / left → next / previous tab · up → `Alt+Tab` · down → show desktop · thumb taps index → `Enter` · thumb taps middle → `Esc` |
-| **4 · MEDIA** | Hand above / below the center → volume up / down · thumb taps index → play / pause · thumb taps middle → mute · flick left / right → previous / next track |
+| **4 · MEDIA** | Quick move up / down → volume up / down · thumb taps index → play / pause · thumb taps middle → mute · flick left / right → previous / next track |
+| **5 · WINDOWS** | Flick right / left → snap the window right / left · up → maximize · down → minimize · thumb taps index → Task View · thumb taps middle → voice typing (`Win+H`) |
 
-Shortcut and media gestures are remappable in `SHORTCUT_BINDINGS` / `MEDIA_BINDINGS` (action names in `core/actions.py`). `MODES_ENABLED` turns modes off.
+Any hand shape works inside a mode. Shortcuts, media and window gestures are remappable in `SHORTCUT_BINDINGS` / `MEDIA_BINDINGS` / `WINDOW_BINDINGS` (action names in `core/actions.py`). `MODES_ENABLED` turns modes off.
 
 A small label in the corner of the screen shows the current mode, whether your hand is visible and the progress of a hold; short beeps confirm turning on, off and switching (`HUD_ENABLED`, `HUD_POSITION`, `SOUNDS_ENABLED`).
 
@@ -181,11 +182,14 @@ All parameters live in `config.py` — never scattered across modules. Personal 
 | Cursor creeps when the hand is still | `POINTER_MIN_SPEED` | Increase → try `0.1` |
 | Prefer "hand position = screen position" | `CURSOR_MAPPING` | `"absolute"` |
 | Turns on too easily / too slowly | `ARM_HOLD_S`, `MODE_SELECT_HOLD_S`, `ARM_STILLNESS` | Increase / decrease |
-| Not enough time to show the number after the fist | `MODE_SELECT_WINDOW_S` | Increase → try `2.0` |
+| A resting hand starts modes | `MODE_START_NEEDS_FIST` | `True` |
 | Turns off while repositioning with a fist | `DISARM_HOLD_S` | Increase → try `1.6` |
+| 4 and 5 fingers mixed up | `THUMB_OUT_RATIO` | Lower if 5 reads as 4, raise if 4 reads as 5 |
 | Clicks not registering | `PINCH_INDEX_ENTER_RATIO` | Increase → try `0.35` |
 | Accidental clicks | `PINCH_INDEX_ENTER_RATIO` | Decrease → try `0.25` |
-| Scroll too fast / slow | `SCROLL_SPEED`, `SCROLL_DEADZONE` | Adjust |
+| Closing the hand still clicks | `CLICK_CONFIRM_S` | Increase → try `0.18` |
+| Each flick scrolls too much / too little | `SCROLL_TICKS_PER_HAND_LENGTH` | Decrease / increase |
+| Flicks not detected / slow moves scroll | `STROKE_START_VELOCITY` | Decrease / increase |
 | Swipes not detected | `SWIPE_VELOCITY` | Decrease → try `2.5` |
 | "MediaPipe processing error" in the log | `MP_VIDEO_MODE` | `False` |
 

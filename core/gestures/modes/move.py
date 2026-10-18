@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import logging
 
-from config import DOUBLE_CLICK_WINDOW_S, DRAG_HOLD_SECONDS, PINCH_DEBOUNCE_S
+from config import CLICK_CONFIRM_S, DOUBLE_CLICK_WINDOW_S, DRAG_HOLD_SECONDS, PINCH_DEBOUNCE_S
 from core.gestures.modes.base import ModeHandler
 from core.gestures.poses import HandPose, Pose
 from core.pointer import Pointer
@@ -23,6 +23,11 @@ class MoveMode(ModeHandler):
     - Pinch held DRAG_HOLD_SECONDS → drag until released.
     - Thumb taps middle → right click (once per pinch).
     - Fist (pause) → clutch: reopen the hand anywhere, the cursor does not jump.
+
+    Closing the hand into a fist briefly brings the thumb past the index tip,
+    which looks like a tap. A click therefore waits CLICK_CONFIRM_S after the
+    pinch is released (cursor still frozen) and is cancelled if the hand folds
+    into a fist meanwhile.
     """
 
     name = "move"
@@ -34,9 +39,11 @@ class MoveMode(ModeHandler):
         drag_hold_s: float = DRAG_HOLD_SECONDS,
         double_click_window_s: float = DOUBLE_CLICK_WINDOW_S,
         debounce_s: float = PINCH_DEBOUNCE_S,
+        confirm_s: float = CLICK_CONFIRM_S,
     ) -> None:
         self._actuator = actuator
         self._pointer = pointer
+        self._confirm_s = confirm_s
         self._drag_hold_s = drag_hold_s
         self._double_click_window_s = double_click_window_s
         self._debounce_s = debounce_s
@@ -46,6 +53,7 @@ class MoveMode(ModeHandler):
 
     def _reset_gesture(self) -> None:
         self._pinch_since: float | None = None
+        self._click_pending_since: float | None = None
         self._dragging = False
         self._right_active = False
 
@@ -73,11 +81,28 @@ class MoveMode(ModeHandler):
 
     @property
     def busy(self) -> bool:
-        return self._pinch_since is not None or self._dragging
+        return self._pinch_since is not None or self._dragging or self._click_pending_since is not None
 
     # ── Per frame ─────────────────────────────────────────────────────────────
 
     def process(self, hand: HandPose, pose: Pose, now: float) -> None:
+        if self._click_pending_since is not None:
+            if hand.pose == Pose.FIST or hand.folded:
+                logger.debug("Click cancelled: hand closed into a fist")
+                self._click_pending_since = None
+                self._pointer.unfreeze()
+            elif hand.pinch_index:
+                # A new tap started before the click was confirmed: fire it now.
+                self._click_pending_since = None
+                self._click(now)
+            elif now - self._click_pending_since >= self._confirm_s:
+                self._click_pending_since = None
+                self._click(now)
+                self._pointer.unfreeze()
+            else:
+                self._pointer.update(hand, now)  # frozen: tracks the hand without moving the cursor
+                return
+
         if hand.pinch_index:
             if self._pinch_since is None:
                 self._pinch_since = now
@@ -87,13 +112,16 @@ class MoveMode(ModeHandler):
                 self._pointer.unfreeze()
                 self._actuator.drag_start()
         elif self._pinch_since is not None:
+            self._pinch_since = None
             if self._dragging:
                 self._actuator.drag_end()
                 self._dragging = False
+                self._pointer.unfreeze()
+            elif hand.pose == Pose.FIST or hand.folded:
+                self._pointer.unfreeze()  # the pinch ended by closing the hand: not a tap
             else:
-                self._click(now)
-            self._pinch_since = None
-            self._pointer.unfreeze()
+                self._click_pending_since = now  # decided over the next frames
+                return
 
         if hand.pinch_middle and not self._right_active and self._pinch_since is None:
             self._right_active = True

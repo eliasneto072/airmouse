@@ -71,34 +71,44 @@ LOCK_SCREEN_HOLD_S  = 1.0         # both fists held this long → Win+L
 
 # ── Interaction mode ──────────────────────────────────────────────────────────
 # "classic": the original always-on gesture set (README → Gesture Guide).
-# "modal":   starts OFF and ignores the hands until you pick a mode: ☝️ held still
-#            starts MOVE, or make a fist and then show 1–4 fingers for MOVE, SCROLL,
-#            SHORTCUTS or MEDIA. Once in a mode it stays locked — any hand shape
-#            works — until you hold a fist to turn it off (README → Modal Mode).
-#            The left hand is not used in modal mode yet.
+# "modal":   starts OFF and ignores the hands until you pick a mode by holding
+#            1–5 fingers still: MOVE, SCROLL, SHORTCUTS, MEDIA, WINDOWS. Once in a
+#            mode it stays locked — any hand shape works — until you hold a fist
+#            to turn it off (README → Modal Mode). The left hand is not used in
+#            modal mode yet.
 INTERACTION_MODE = "classic"
-MODES_ENABLED = ("move", "scroll", "shortcuts", "media")
+MODES_ENABLED = ("move", "scroll", "shortcuts", "media", "windows")
 
 # ── Modal: turning on, choosing a mode, turning off ───────────────────────────
-ARM_HOLD_S = 0.6                  # OFF: hold ☝️ still this long → MOVE
+ARM_HOLD_S = 0.6                  # OFF: hold 1–5 fingers still this long → that mode
 ARM_STILLNESS = 0.25              # holds are restarted if the wrist moves more than this (hand lengths)
-MODE_SELECT_WINDOW_S = 1.5        # OFF: after a fist, show 1–4 fingers within this time…
-MODE_SELECT_HOLD_S = 0.4          # …and hold them still this long to start that mode
+MODE_SELECT_WINDOW_S = 1.5        # OFF: right after a fist, 1–5 fingers start a mode faster:
+MODE_SELECT_HOLD_S = 0.4          # …held still this long
+MODE_START_NEEDS_FIST = False     # True: 2–5 fingers only start a mode right after a fist (☝️ always works)
 DISARM_HOLD_S = 1.2               # in a mode: hold a fist this long → OFF (a shorter fist = pause)
 AUTO_DISARM_S = 2.0               # hand out of frame this long → disarm
 HAND_LOST_RELEASE_S = 0.3         # hand out of frame this long → release drag/keys
 
-# ── Modal: SCROLL mode (✌️) ────────────────────────────────────────────────────
-# Works like a joystick: where you make the ✌️ is the center; move the hand
-# above/below (or left/right of) it to scroll, further = faster.
-SCROLL_DEADZONE = 0.25            # hand lengths around the center that do nothing
-SCROLL_SPEED = 15.0               # wheel ticks/s per hand length beyond the dead zone
-SCROLL_MAX_RATE = 30.0            # wheel ticks/s
-HSCROLL_ENABLED = True            # left/right of the center scrolls horizontally
-ZOOM_SPEED = 3.0                  # pinch + up/down: zoom steps/s per hand length
+# ── Modal: gesture strokes (SCROLL and MEDIA) ─────────────────────────────────
+# A quick move of the hand is a "stroke": up/down (or left/right) by a hand
+# length scrolls / changes the volume by a fixed amount. Slow movements — such as
+# bringing the hand back afterwards — are ignored, so you can flick repeatedly.
+STROKE_START_VELOCITY = 1.5       # hand lengths/s for a movement to count as a stroke
+STROKE_END_VELOCITY = 0.6         # the stroke ends when the hand slows below this
+STROKE_RETURN_IGNORE_S = 0.4      # an opposite stroke this soon after one is the hand coming back
+
+# ── Modal: SCROLL mode (2 fingers to start) ───────────────────────────────────
+SCROLL_STYLE = "stroke"           # "stroke": flick up/down to scroll | "joystick": hand above/below a center
+SCROLL_TICKS_PER_HAND_LENGTH = 6.0  # stroke: wheel ticks per hand length of movement (min 1 per stroke)
+HSCROLL_ENABLED = True            # left/right strokes scroll horizontally
+ZOOM_STEPS_PER_HAND_LENGTH = 3.0  # pinch + up/down stroke: zoom in/out steps
+SCROLL_DEADZONE = 0.25            # joystick: hand lengths around the center that do nothing
+SCROLL_SPEED = 15.0               # joystick: wheel ticks/s per hand length beyond the dead zone
+SCROLL_MAX_RATE = 30.0            # joystick: wheel ticks/s
+ZOOM_SPEED = 3.0                  # joystick: pinch + up/down zoom steps/s per hand length
 ZOOM_MAX_RATE = 6.0
 
-# ── Modal: SHORTCUTS (3 fingers) and MEDIA (4 fingers) modes ──────────────────
+# ── Modal: SHORTCUTS (3), MEDIA (4) and WINDOWS (5) modes ─────────────────────
 # Values are action names from core/actions.py; None leaves a gesture unbound.
 SWIPE_VELOCITY = 3.0              # hand lengths/s for a flick to count as a swipe
 SWIPE_REARM_VELOCITY = 0.8        # the hand must slow below this before the next swipe
@@ -110,15 +120,21 @@ SHORTCUT_BINDINGS = {
     "pinch_index": "enter",
     "pinch_middle": "escape",
 }
-MEDIA_BINDINGS = {
+MEDIA_BINDINGS = {                # up/down strokes always change the volume
     "swipe_right": "next_track",
     "swipe_left": "prev_track",
     "pinch_index": "play_pause",
     "pinch_middle": "mute",
 }
-VOLUME_DEADZONE = 0.25            # MEDIA: hand above/below the center changes the volume
-VOLUME_SPEED = 8.0                # volume steps/s per hand length beyond the dead zone
-VOLUME_MAX_RATE = 12.0
+VOLUME_STEPS_PER_HAND_LENGTH = 8.0  # MEDIA: volume steps (2 % each) per hand length of stroke
+WINDOW_BINDINGS = {
+    "swipe_right": "snap_right",
+    "swipe_left": "snap_left",
+    "swipe_up": "maximize",
+    "swipe_down": "minimize",
+    "pinch_index": "task_view",
+    "pinch_middle": "voice_typing",
+}
 
 # ── Modal: feedback ───────────────────────────────────────────────────────────
 HUD_ENABLED = True                # small always-on-top label with the current mode
@@ -131,6 +147,7 @@ SOUNDS_ENABLED = True             # short beeps on arm / disarm / mode switch
 # the camera and with a tilted hand.
 FINGER_EXTEND_RATIO = 1.15        # extended: wrist→tip > wrist→PIP × this
 FIST_TIP_RADIUS = 1.15            # fist: all fingertips within this many hand lengths of the wrist
+THUMB_OUT_RATIO = 0.75            # 5 vs 4: thumb tip further than this from the pinky knuckle = thumb out
 PINCH_INDEX_ENTER_RATIO = 0.30    # thumb tip ↔ index tip, in hand lengths — pinch starts below…
 PINCH_INDEX_EXIT_RATIO = 0.45     # …and ends above this (hysteresis: no flicker at the edge)
 PINCH_MIDDLE_ENTER_RATIO = 0.30   # thumb tip ↔ middle tip
@@ -150,6 +167,7 @@ POINTER_MIN_SPEED = 0.06          # relative: slower movement (hand lengths/s) i
 POINTER_FILTER_MINCUTOFF = 1.0    # 1€ filter on the anchor (pixel space)
 POINTER_FILTER_BETA = 0.01
 CLICK_ROLLBACK_S = 0.08           # on pinch, move the cursor back to where it was this long ago
+CLICK_CONFIRM_S = 0.12            # a click waits this long and is cancelled if the hand closes into a fist
 
 # ── Handedness ────────────────────────────────────────────────────────────────
 # MediaPipe Tasks API reports handedness assuming a mirrored (selfie-camera) input,

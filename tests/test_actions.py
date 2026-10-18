@@ -19,7 +19,7 @@ def test_unbound_and_unknown_actions_do_nothing():
 
 def test_every_action_uses_known_key_names():
     special = {
-        "alt", "ctrl", "shift", "cmd", "tab", "left", "right", "enter", "esc",
+        "alt", "ctrl", "shift", "cmd", "tab", "left", "right", "up", "down", "enter", "esc", "f4",
         "media_play_pause", "media_next", "media_previous",
         "media_volume_up", "media_volume_down", "media_volume_mute",
     }

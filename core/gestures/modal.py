@@ -7,7 +7,7 @@ import logging
 import time
 from typing import Callable
 
-from config import DOMINANT_HAND, MODES_ENABLED
+from config import DOMINANT_HAND, MODE_START_NEEDS_FIST, MODES_ENABLED, SCROLL_STYLE, WINDOW_BINDINGS
 from core.display import TrackpadZone, VirtualDesktop
 from core.gestures.mode_manager import Mode, ModeManager, ModalStatus
 from core.gestures.modes.media import MediaMode
@@ -40,6 +40,8 @@ class ModalOrchestrator:
         sounds=None,
         dominant_hand: str = DOMINANT_HAND,
         enabled: tuple[str, ...] = MODES_ENABLED,
+        start_needs_fist: bool = MODE_START_NEEDS_FIST,
+        scroll_style: str = SCROLL_STYLE,
         clock: Callable[[], float] = time.perf_counter,
     ) -> None:
         if dominant_hand not in ("right", "left"):
@@ -53,13 +55,16 @@ class ModalOrchestrator:
         self._pointer = Pointer(actuator, desktop, trackpad)
         handlers = {
             Mode.MOVE: MoveMode(actuator, self._pointer),
-            Mode.SCROLL: ScrollMode(actuator),
+            Mode.SCROLL: ScrollMode(actuator, style=scroll_style),
             Mode.SHORTCUTS: ShortcutsMode(actuator),
             Mode.MEDIA: MediaMode(actuator),
+            Mode.WINDOWS: ShortcutsMode(actuator, WINDOW_BINDINGS, name="windows", setting="WINDOW_BINDINGS"),
         }
-        self._manager = ModeManager(handlers, actuator, enabled=enabled, on_event=self._on_event)
+        self._manager = ModeManager(
+            handlers, actuator, enabled=enabled, start_needs_fist=start_needs_fist, on_event=self._on_event
+        )
         logger.info(
-            "Modal mode ready (dominant hand: %s, modes: %s) — hold ☝️ still to arm",
+            "Modal mode ready (dominant hand: %s, modes: %s) — hold 1–5 fingers still to start",
             dominant_hand,
             ", ".join(enabled),
         )

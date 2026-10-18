@@ -13,8 +13,8 @@ POSES = [
     ("point", None, Pose.ONE),
     ("peace", None, Pose.TWO),
     ("three", None, Pose.THREE),
-    ("four", None, Pose.FOUR),
-    ("open", None, Pose.FOUR),  # thumb is ignored on purpose
+    ("four", None, Pose.FOUR),   # thumb folded into the palm
+    ("open", None, Pose.FIVE),   # thumb out
 ]
 
 

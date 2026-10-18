@@ -52,7 +52,8 @@ def make_hand(
 ) -> list[Landmark]:
     """
     Args:
-        pose:         "open", "point", "peace", "three", "four" or "fist"
+        pose:         "open" (5 fingers), "point", "peace", "three", "four" (thumb
+                      folded) or "fist"
         pinch:        None, "index" or "middle" — put the thumb tip on that fingertip
         center:       wrist position (normalized x, y)
         scale:        hand size (see module docstring)
@@ -77,12 +78,12 @@ def make_hand(
     # Thumb: CMC(1), MCP(2), IP(3), TIP(4) on the index side
     pts[1] = (-0.35, -0.20)
     pts[2] = (-0.50, -0.40)
-    if extended["thumb"]:
-        pts[3] = (-0.60, -0.55)
-        pts[4] = (-0.65, -0.70)
-    else:  # tucked across the palm, tip below the thumb MCP
-        pts[3] = (-0.35, -0.35)
-        pts[4] = (-0.20, -0.30)
+    if extended["thumb"]:  # sticking out to the side
+        pts[3] = (-0.68, -0.48)
+        pts[4] = (-0.85, -0.55)
+    else:  # folded across the palm towards the pinky, tip below the thumb MCP
+        pts[3] = (-0.22, -0.38)
+        pts[4] = (0.05, -0.35)
 
     if pinch is not None:
         tu, tv = pts[_PINCH_TARGET[pinch]]

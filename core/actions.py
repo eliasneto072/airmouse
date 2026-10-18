@@ -23,6 +23,12 @@ ACTIONS: dict[str, tuple[str, ...]] = {
     "lock_screen": ("cmd", "l"),
     "snap_left": ("cmd", "left"),
     "snap_right": ("cmd", "right"),
+    "maximize": ("cmd", "up"),
+    "minimize": ("cmd", "down"),
+    "next_desktop": ("ctrl", "cmd", "right"),
+    "prev_desktop": ("ctrl", "cmd", "left"),
+    "close_window": ("alt", "f4"),
+    "voice_typing": ("cmd", "h"),
     # Navigation
     "next_tab": ("ctrl", "tab"),
     "prev_tab": ("ctrl", "shift", "tab"),

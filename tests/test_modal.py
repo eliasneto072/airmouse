@@ -18,7 +18,12 @@ HOME = (0.5, 0.8)
 
 
 class Rig:
-    def __init__(self, enabled=("move", "scroll", "shortcuts", "media")):
+    def __init__(
+        self,
+        enabled=("move", "scroll", "shortcuts", "media", "windows"),
+        start_needs_fist=False,
+        scroll_style="stroke",
+    ):
         self.clock = FakeClock()
         self.actuator = FakeActuator()
         self.actuator.pos = (960, 540)
@@ -29,6 +34,8 @@ class Rig:
             TrackpadZone(x_min=100, x_max=1180, y_min=100, y_max=620),
             sounds=self,
             enabled=enabled,
+            start_needs_fist=start_needs_fist,
+            scroll_style=scroll_style,
             clock=self.clock,
         )
 
@@ -65,8 +72,9 @@ class Rig:
         assert self.mode == Mode.MOVE
 
     def tap(self, finger="index", pose="point", center=HOME):
+        """Pinch, release, and wait for the click to be confirmed (CLICK_CONFIRM_S)."""
         self.hold(0.12, pose=pose, pinch=finger, center=center)
-        self.hold(DT * 2, pose=pose, center=center)
+        self.hold(0.15, pose=pose, center=center)
 
     def switch(self, pose):
         """Hold a fist until OFF, then open straight into the new number."""
@@ -206,17 +214,41 @@ def test_two_fingers_switch_to_scroll_and_hand_height_scrolls():
     assert rig.actuator.count("move") == moves_before  # cursor does not move
 
 
-def test_scroll_horizontal_and_zoom():
+def test_scroll_strokes_horizontal_and_zoom():
     rig = Rig()
     rig.arm()
     rig.switch("peace")
-    rig.hold(0.2, pose="peace", end=users_right(1.0))
-    rig.hold(0.4, pose="peace", center=users_right(1.0))
+    rig.hold(0.15, pose="peace", end=users_right(0.8))      # quick stroke to the right
+    rig.hold(0.3, pose="peace", center=users_right(0.8))
     assert rig.actuator.total("hscroll") > 0
 
-    rig.hold(0.3, pose="peace", center=HOME)
-    rig.hold(0.3, pose="peace", pinch="index", center=above(1.0))
+    rig.hold(1.5, pose="peace", center=users_right(0.8), end=HOME)  # slow return: nothing
+    assert rig.actuator.total("scroll") == 0
+    rig.hold(0.15, pose="peace", pinch="index", end=above(0.8))     # pinch + stroke up
+    rig.hold(0.3, pose="peace", pinch="index", center=above(0.8))
     assert ("ctrl", "=") in rig.actuator.combos()
+
+
+def test_scroll_flick_up_then_slow_return_then_flick_again():
+    rig = Rig()
+    rig.arm()
+    rig.switch("peace")
+    for _ in range(2):
+        rig.hold(0.12, pose="peace", end=above(0.5))
+        rig.hold(0.1, pose="peace", center=above(0.5))
+        rig.hold(1.2, pose="peace", center=above(0.5), end=HOME)   # bring the hand back slowly
+    ticks = [args[0] for name, args, _ in rig.actuator.calls if name == "scroll"]
+    assert ticks and all(t > 0 for t in ticks)
+    assert 2 <= sum(ticks) <= 12   # a flick scrolls a little, not a page
+
+
+def test_joystick_scroll_style_still_available():
+    rig = Rig(scroll_style="joystick")
+    rig.arm()
+    rig.switch("peace")
+    rig.hold(0.2, pose="peace", end=above(0.8))
+    rig.hold(0.5, pose="peace", center=above(0.8))
+    assert rig.actuator.total("scroll") > 0
 
 
 # ── SHORTCUTS ─────────────────────────────────────────────────────────────────
@@ -296,8 +328,15 @@ def test_scroll_works_with_any_hand_shape():
     assert rig.actuator.total("scroll") > 0
 
 
-def test_resting_open_hand_does_not_start_a_mode():
-    rig = Rig()
+def test_any_number_held_still_starts_its_mode():
+    for pose, mode in [("peace", Mode.SCROLL), ("three", Mode.SHORTCUTS), ("four", Mode.MEDIA), ("open", Mode.WINDOWS)]:
+        rig = Rig()
+        rig.hold(0.9, pose=pose)
+        assert rig.mode == mode, pose
+
+
+def test_with_start_needs_fist_a_resting_open_hand_does_not_start_a_mode():
+    rig = Rig(start_needs_fist=True)
     rig.hold(3.0, pose="open")
     rig.hold(3.0, pose="peace")
     assert rig.mode == Mode.DISARMED
@@ -312,7 +351,7 @@ def test_fist_then_number_starts_that_mode():
 
 
 def test_number_shown_too_late_after_fist_is_ignored():
-    rig = Rig()
+    rig = Rig(start_needs_fist=True)
     rig.hold(0.3, pose="fist")
     rig.hold(1.8, pose="point", center=(0.6, 0.8), end=(0.3, 0.8))  # moving: no arm
     rig.hold(1.0, pose="peace")
@@ -320,7 +359,34 @@ def test_number_shown_too_late_after_fist_is_ignored():
 
 
 def test_moving_number_after_fist_does_not_select():
-    rig = Rig()
+    rig = Rig(start_needs_fist=True)
     rig.hold(0.3, pose="fist")
     rig.hold(1.4, pose="four", center=(0.6, 0.8), end=(0.3, 0.8))
     assert rig.mode == Mode.DISARMED
+
+
+def test_closing_the_hand_into_a_fist_does_not_click():
+    # On the way to a fist the thumb passes the index tip, which looks like a tap.
+    rig = Rig()
+    rig.arm()
+    rig.hold(0.07, pinch="index")
+    rig.hold(0.6, pose="fist")
+    assert rig.actuator.count("left_click") == 0
+    assert rig.paused
+
+
+def test_open_palm_is_five_and_four_is_media():
+    rig = Rig()
+    rig.hold(0.9, pose="four")
+    assert rig.mode == Mode.MEDIA
+    rig.switch("open")
+    assert rig.mode == Mode.WINDOWS
+
+
+def test_windows_mode_swipes():
+    rig = Rig()
+    rig.hold(0.9, pose="open")
+    assert rig.mode == Mode.WINDOWS
+    rig.hold(0.1, pose="open", end=users_right(0.8))
+    rig.hold(0.4, pose="open", center=users_right(0.8))
+    assert rig.actuator.combos() == [("cmd", "right")]
