@@ -88,3 +88,17 @@ TIMER_RESOLUTION_MS = 1          # Sets Windows multimedia timer floor to 1ms
 # psutil priority constant: HIGH_PRIORITY_CLASS = 0x80
 # Do NOT use REALTIME_PRIORITY_CLASS (0x100) — it can starve system threads.
 PROCESS_PRIORITY = 0x80
+
+# ── Local overrides ───────────────────────────────────────────────────────────
+# Put personal settings (camera index, thresholds, INTERACTION_MODE, …) in a
+# config_local.py next to this file, e.g.:
+#     CAMERA_INDEX = 1
+# It is git-ignored, so your values survive `git pull` and never end up in a commit.
+# The unit tests set AIRMOUSE_IGNORE_LOCAL_CONFIG=1 so they always see the defaults.
+import os as _os
+
+if _os.environ.get("AIRMOUSE_IGNORE_LOCAL_CONFIG") != "1":
+    try:
+        from config_local import *  # noqa: F401,F403
+    except ImportError:
+        pass
