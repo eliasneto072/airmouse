@@ -68,6 +68,32 @@ SCROLL_TICKS = 3
 ZOOM_WRIST_DELTA    = 0.05        # normalized wrist-to-wrist distance change per zoom tick
 LOCK_SCREEN_HOLD_S  = 1.0         # both fists held this long → Win+L
 
+# ── Pose classification (precision layer) ─────────────────────────────────────
+# Geometry is measured in pixels and divided by the hand's own size (wrist →
+# middle-finger knuckle, "hand length"), so thresholds hold at any distance from
+# the camera and with a tilted hand.
+FINGER_EXTEND_RATIO = 1.15        # extended: wrist→tip > wrist→PIP × this
+FIST_TIP_RADIUS = 1.15            # fist: all fingertips within this many hand lengths of the wrist
+PINCH_INDEX_ENTER_RATIO = 0.30    # thumb tip ↔ index tip, in hand lengths — pinch starts below…
+PINCH_INDEX_EXIT_RATIO = 0.45     # …and ends above this (hysteresis: no flicker at the edge)
+PINCH_MIDDLE_ENTER_RATIO = 0.30   # thumb tip ↔ middle tip
+PINCH_MIDDLE_EXIT_RATIO = 0.45
+POSE_STABLE_S = 0.08              # a pose must persist this long before it counts
+POSE_NONE_STABLE_S = 0.30         # "unrecognized" must persist longer (motion blur mid-gesture)
+HANDEDNESS_STABLE_FRAMES = 5      # frames a single hand's left/right label must disagree to flip
+DOMINANT_HAND = "right"           # "right" | "left" — the hand that drives the mouse
+
+# ── Cursor (precision layer) ──────────────────────────────────────────────────
+CURSOR_MAPPING = "relative"       # "relative" (trackpad-like) | "absolute" (hand position = screen position)
+CURSOR_ANCHOR_LANDMARK = 5        # index knuckle: stays put while the thumb pinches the index tip
+POINTER_SPEED = 600               # relative: screen px per hand length of slow movement
+POINTER_ACCEL = 0.5               # relative: extra gain per hand length/s of speed
+POINTER_MAX_GAIN = 3.0            # relative: cap on the acceleration multiplier
+POINTER_MIN_SPEED = 0.06          # relative: slower movement (hand lengths/s) is treated as jitter
+POINTER_FILTER_MINCUTOFF = 1.0    # 1€ filter on the anchor (pixel space)
+POINTER_FILTER_BETA = 0.01
+CLICK_ROLLBACK_S = 0.08           # on pinch, move the cursor back to where it was this long ago
+
 # ── Handedness ────────────────────────────────────────────────────────────────
 # MediaPipe Tasks API reports handedness assuming a mirrored (selfie-camera) input,
 # meaning "Right" = user's right hand and "Left" = user's left hand.
