@@ -8,7 +8,13 @@ the old GestureProcessor.process(landmarks: list[Landmark]).
 
 import logging
 
-from config import LEFT_HAND_ENABLED, TWO_HAND_GESTURES_ENABLED
+from config import (
+    HUD_ENABLED,
+    INTERACTION_MODE,
+    LEFT_HAND_ENABLED,
+    SOUNDS_ENABLED,
+    TWO_HAND_GESTURES_ENABLED,
+)
 from core.tracker import HandsResult
 from core.display import VirtualDesktop, TrackpadZone
 from core.actuator import MouseActuator
@@ -62,3 +68,31 @@ class GestureOrchestrator:
     @property
     def right_state(self) -> str:
         return self._right._state.name
+
+    def shutdown(self) -> None:
+        """Nothing to stop; main.py releases the actuator."""
+
+
+def build_orchestrator(
+    actuator: MouseActuator,
+    desktop: VirtualDesktop,
+    trackpad: TrackpadZone,
+    mode: str = INTERACTION_MODE,
+    hud_enabled: bool = HUD_ENABLED,
+    sounds_enabled: bool = SOUNDS_ENABLED,
+):
+    """Create the gesture pipeline selected by INTERACTION_MODE ("classic" or "modal")."""
+    if mode == "classic":
+        return GestureOrchestrator(actuator, desktop, trackpad)
+    if mode == "modal":
+        from core.feedback import Sounds
+        from core.gestures.modal import ModalOrchestrator
+        from core.hud import Hud
+
+        hud = None
+        if hud_enabled:
+            hud = Hud()
+            hud.start()
+        sounds = Sounds() if sounds_enabled else None
+        return ModalOrchestrator(actuator, desktop, trackpad, hud=hud, sounds=sounds)
+    raise ValueError(f"INTERACTION_MODE must be 'classic' or 'modal', not {mode!r}")

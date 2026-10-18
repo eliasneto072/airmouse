@@ -35,7 +35,7 @@ import cv2
 from config import PROCESS_PRIORITY, TIMER_RESOLUTION_MS, DEBUG_GESTURES
 from core.camera import AsyncCamera
 from core.tracker import HandTracker
-from core.gestures import GestureOrchestrator
+from core.gestures import build_orchestrator
 from core.actuator import MouseActuator
 from core.display import build_virtual_desktop, build_trackpad_zone
 
@@ -167,7 +167,7 @@ def run() -> None:
     none_count = 0
 
     with AsyncCamera() as camera, HandTracker() as tracker:
-        processor = GestureOrchestrator(actuator, desktop, trackpad)
+        processor = build_orchestrator(actuator, desktop, trackpad)
 
         logger.info("Running. Press Ctrl+C to exit.")
 
@@ -211,9 +211,9 @@ def run() -> None:
         finally:
             if DEBUG_GESTURES:
                 cv2.destroyAllWindows()
-            # Ensure drag is never left pressed on exit
-            if actuator.is_dragging:
-                actuator.drag_end()
+            # Never leave a mouse button or key pressed on exit
+            processor.shutdown()
+            actuator.release_all()
             _restore_windows_settings(original_settings)
             original_settings.clear()  # prevent atexit double-restore
             logger.info("=== AI Air Mouse stopped ===")
