@@ -3,11 +3,19 @@
 
 from __future__ import annotations
 
+import dataclasses
 import logging
 import time
 from typing import Callable
 
-from config import DOMINANT_HAND, MODE_START_NEEDS_FIST, MODES_ENABLED, SCROLL_STYLE, WINDOW_BINDINGS
+from config import (
+    DOMINANT_HAND,
+    LEFT_HAND_ENABLED,
+    MODE_START_NEEDS_FIST,
+    MODES_ENABLED,
+    SCROLL_STYLE,
+    WINDOW_BINDINGS,
+)
 from core.display import TrackpadZone, VirtualDesktop
 from core.gestures.mode_manager import Mode, ModeManager, ModalStatus
 from core.gestures.modes.media import MediaMode
@@ -15,6 +23,7 @@ from core.gestures.modes.move import MoveMode
 from core.gestures.modes.scroll import ScrollMode
 from core.gestures.modes.shortcuts import ShortcutsMode
 from core.gestures.poses import PoseClassifier
+from core.gestures.support_hand import SupportHand
 from core.pointer import Pointer
 from core.tracker import HandsResult
 
@@ -42,6 +51,7 @@ class ModalOrchestrator:
         enabled: tuple[str, ...] = MODES_ENABLED,
         start_needs_fist: tuple[str, ...] = MODE_START_NEEDS_FIST,
         scroll_style: str = SCROLL_STYLE,
+        support_hand: bool = LEFT_HAND_ENABLED,
         clock: Callable[[], float] = time.perf_counter,
     ) -> None:
         if dominant_hand not in ("right", "left"):
@@ -52,6 +62,8 @@ class ModalOrchestrator:
         self._hud = hud
         self._sounds = sounds
         self._classifier = PoseClassifier()
+        self._support_classifier = PoseClassifier()
+        self._support = SupportHand(actuator) if support_hand else None
         self._pointer = Pointer(actuator, desktop, trackpad)
         handlers = {
             Mode.MOVE: MoveMode(actuator, self._pointer),
@@ -64,9 +76,10 @@ class ModalOrchestrator:
             handlers, actuator, enabled=enabled, start_needs_fist=start_needs_fist, on_event=self._on_event
         )
         logger.info(
-            "Modal mode ready (dominant hand: %s, modes: %s) — hold 1–5 fingers still to start",
+            "Modal mode ready (dominant hand: %s, modes: %s, support hand: %s) — hold 1–4 fingers still to start",
             dominant_hand,
             ", ".join(enabled),
+            "on" if support_hand else "off",
         )
         if self._hud is not None:
             self._hud.update(self._manager.status)
@@ -77,7 +90,10 @@ class ModalOrchestrator:
 
     @property
     def status(self) -> ModalStatus:
-        return self._manager.status
+        status = self._manager.status
+        if self._support is not None:
+            status = dataclasses.replace(status, support=self._support.status_text(self._clock()))
+        return status
 
     @property
     def right_state(self) -> str:
@@ -92,17 +108,37 @@ class ModalOrchestrator:
 
     def process(self, hands: HandsResult) -> None:
         now = self._clock()
-        landmarks = hands.right if self._dominant == "right" else hands.left
-        if landmarks is None:
+        if self._dominant == "right":
+            dominant_lm, support_lm = hands.right, hands.left
+        else:
+            dominant_lm, support_lm = hands.left, hands.right
+
+        if dominant_lm is None:
             self._classifier.reset()
             hand = None
         else:
-            hand = self._classifier.classify(landmarks)
+            hand = self._classifier.classify(dominant_lm)
         self._manager.process(hand, now)
+
+        if self._support is not None:
+            if support_lm is None:
+                self._support_classifier.reset()
+                support = None
+            else:
+                support = self._support_classifier.classify(support_lm)
+            self._support.process(
+                support,
+                now,
+                active=self._manager.mode != Mode.DISARMED,
+                dominant_visible=hand is not None,
+            )
+
         if self._hud is not None:
-            self._hud.update(self._manager.status)
+            self._hud.update(self.status)
 
     def shutdown(self) -> None:
+        if self._support is not None:
+            self._support.release()
         self._manager.disarm()
         self._actuator.release_all()
         if self._hud is not None:

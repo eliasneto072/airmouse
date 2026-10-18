@@ -71,8 +71,10 @@ def run_action(actuator, name: str | None) -> bool:
     return True
 
 
-def validate_bindings(bindings: dict[str, str | None], setting: str) -> None:
+def validate_bindings(
+    bindings: dict[str, str | None], setting: str, extra: tuple[str, ...] = ()
+) -> None:
     """Log a warning for every binding that names an unknown action."""
     for gesture, action in bindings.items():
-        if action is not None and action not in ACTIONS:
+        if action is not None and action not in ACTIONS and action not in extra:
             logger.warning("%s[%r] = %r is not a known action", setting, gesture, action)

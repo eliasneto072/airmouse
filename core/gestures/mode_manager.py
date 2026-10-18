@@ -63,6 +63,7 @@ class ModalStatus:
     hand_visible: bool
     pending: str | None   # "choose", "disarm" or the name of the mode being started
     progress: float       # 0..1 progress of the pending hold
+    support: str | None = None  # what the left hand is holding / just did ("CTRL", "ALT+TAB", …)
 
 
 class ModeManager:

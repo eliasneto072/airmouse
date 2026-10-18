@@ -27,6 +27,7 @@ BACKGROUND = "#1d1f24"
 TEXT = "#f2f3f5"
 MUTED = "#a3a8b3"
 HAND_MISSING = "#4a4d55"
+SUPPORT = "#f2c94c"  # left-hand badge
 
 STYLE: dict[Mode, tuple[str, str]] = {
     Mode.DISARMED: ("OFF", "#8a8f98"),
@@ -162,9 +163,14 @@ class Hud:
             dot_x - r, mid - r, dot_x + r, mid + r,
             fill=color if status.hand_visible else HAND_MISSING, outline="",
         )
-        canvas.create_text(30 * scale, mid, text=label, anchor="w", fill=TEXT, font=("Segoe UI", 10, "bold"))
-
+        label_id = canvas.create_text(30 * scale, mid, text=label, anchor="w", fill=TEXT, font=("Segoe UI", 10, "bold"))
         hint, hint_color = _pending_text(status)
+        if status.support and not hint:  # the hint is temporary and takes the same space
+            right = canvas.bbox(label_id)[2]
+            canvas.create_text(
+                right + 8 * scale, mid, text=status.support, anchor="w", fill=SUPPORT, font=("Segoe UI", 9, "bold")
+            )
+
         if hint:
             canvas.create_text(width - 10 * scale, mid, text=hint, anchor="e", fill=hint_color, font=("Segoe UI", 9))
         if status.progress > 0:

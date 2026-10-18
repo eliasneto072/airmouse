@@ -164,7 +164,23 @@ Any hand shape works inside a mode. Shortcuts, media and window gestures are rem
 
 A small label in the corner of the screen shows the current mode, whether your hand is visible and the progress of a hold; short beeps confirm turning on, off and switching (`HUD_ENABLED`, `HUD_POSITION`, `SOUNDS_ENABLED`).
 
-Gestures are measured relative to your hand's size and work with a tilted hand, so they behave the same close to the camera or reclined further back. The left hand is not used in modal mode yet.
+Gestures are measured relative to your hand's size and work with a tilted hand, so they behave the same close to the camera or reclined further back.
+
+### Left hand
+
+While the right hand has a mode on, the left hand fires system shortcuts (it is ignored while OFF). Hold a pose for a moment; each pose fires once — change pose to fire again.
+
+| Left hand | Action |
+|-----------|--------|
+| ✌️ held | `Alt+Tab` that stays open — thumb taps index → next window, thumb taps middle → previous; drop the ✌️ to pick the window |
+| 3 fingers | Task View (`Win+Tab`) |
+| ✊ then 🖐️ (open hand) | Show desktop (`Win+D`) — needs the fist first, since an open hand is also a resting hand |
+| 👌 | Start menu |
+| ✊ | Hold `Ctrl` while the right hand is in view (Ctrl+click, Ctrl+scroll = zoom) — only when you close the hand in view, so a resting fist never holds Ctrl |
+| ☝️ + flick left / right | Back / forward (`Alt+←` / `Alt+→`) |
+| 4 fingers (thumb folded), ☝️ + flick up / down | Free slots |
+
+Remap in `LEFT_HAND_BINDINGS`; `LEFT_HAND_ENABLED = False` turns the left hand off (and tracks a single hand). Left-handed? `DOMINANT_HAND = "left"` swaps the roles. The label in the corner shows `CTRL` / `ALT+TAB` or the last left-hand action.
 
 ---
 
@@ -338,6 +354,7 @@ airmouse/
         ├── orchestrator.py   Classic pipeline + build_orchestrator()
         ├── modal.py          Modal pipeline
         ├── mode_manager.py   OFF / arm / switch / pause state machine
+        ├── support_hand.py   Modal left-hand shortcuts
         ├── modes/            move.py, scroll.py, shortcuts.py, media.py
         ├── poses.py          Scale- and rotation-invariant pose classifier
         ├── stabilizer.py     Pose debouncing

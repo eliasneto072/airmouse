@@ -19,7 +19,7 @@ MP_VIDEO_MODE = True              # track landmarks across frames; set False to 
 # ── Hand layers ────────────────────────────────────────────────────────────────
 # The right hand always drives the mouse. Turning both layers off tracks a single
 # hand, which is cheaper and stops a resting left hand from triggering shortcuts.
-LEFT_HAND_ENABLED = True          # left-hand system shortcuts (Win+D, Alt+Tab, Ctrl, ...)
+LEFT_HAND_ENABLED = True          # left-hand system shortcuts (classic, and modal LEFT_HAND_BINDINGS)
 TWO_HAND_GESTURES_ENABLED = True  # zoom / window snap / lock screen (needs both hands)
 
 # ── Virtual Trackpad ───────────────────────────────────────────────────────────
@@ -75,8 +75,8 @@ LOCK_SCREEN_HOLD_S  = 1.0         # both fists held this long → Win+L
 #            1–5 fingers still: MOVE, SCROLL, SHORTCUTS, MEDIA, WINDOWS (5 only
 #            right after a fist — see MODE_START_NEEDS_FIST). Once in a
 #            mode it stays locked — any hand shape works — until you hold a fist
-#            to turn it off (README → Modal Mode). The left hand is not used in
-#            modal mode yet.
+#            to turn it off. While a mode is on, the left hand fires system
+#            shortcuts (LEFT_HAND_BINDINGS). README → Modal Mode.
 INTERACTION_MODE = "classic"
 MODES_ENABLED = ("move", "scroll", "shortcuts", "media", "windows")
 
@@ -138,6 +138,29 @@ WINDOW_BINDINGS = {
     "swipe_down": "minimize",
     "pinch_index": "task_view",
     "pinch_middle": "voice_typing",
+}
+
+# ── Modal: left hand (support hand) ───────────────────────────────────────────
+# Active only while the right hand has a mode on (and LEFT_HAND_ENABLED). A pose
+# must be held LEFT_HOLD_S and fires once; change pose to fire again.
+# Values are action names from core/actions.py, None (unbound), or the special
+# "window_switcher" (held Alt+Tab) and "hold_ctrl" (Ctrl held while the pose is).
+LEFT_HOLD_S = 0.35
+LEFT_PALM_HOLD_S = 0.9            # the open hand (5) is also a resting hand: needs a longer hold…
+LEFT_NEEDS_FIST = ("five",)       # …and only fires right after a fist (✊ → 🖐️)
+ALT_SWITCHER_MAX_S = 10.0         # the window switcher lets go of Alt after this long
+LEFT_HAND_BINDINGS = {
+    "two": "window_switcher",     # ✌️: Alt+Tab stays open — thumb taps index → next, middle → previous; drop the ✌️ to pick
+    "three": "task_view",
+    "four": None,                 # four fingers, thumb folded: free slot
+    "five": "show_desktop",       # open hand, right after a fist (LEFT_NEEDS_FIST)
+    "ok": "start_menu",           # 👌
+    "fist": "hold_ctrl",          # Ctrl held while the fist is closed and the right hand is in view;
+                                  # only when you close the hand in view (a resting fist never holds Ctrl)
+    "one_swipe_left": "back",     # ☝️ + flick to your left
+    "one_swipe_right": "forward",
+    "one_swipe_up": None,
+    "one_swipe_down": None,
 }
 
 # ── Modal: feedback ───────────────────────────────────────────────────────────
