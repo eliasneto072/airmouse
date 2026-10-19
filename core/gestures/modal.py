@@ -10,6 +10,7 @@ from typing import Callable
 
 from config import (
     ATTENTION_GATE,
+    ATTENTION_MAX_ANGLE,
     DOMINANT_HAND,
     LEFT_HAND_ENABLED,
     MODE_START_NEEDS_FIST,
@@ -72,6 +73,8 @@ class ModalOrchestrator:
         self._attention_on = self._attention is not None
         self._started = False
         self._toast: tuple[str, float] | None = None
+        self._last_attention: tuple[bool, bool] | None = None  # (face, looking), for logging changes
+        self._attention_text = ""
         self._classifier = PoseClassifier()
         self._support_classifier = PoseClassifier()
         self._support = SupportHand(actuator) if support_hand else None
@@ -122,6 +125,8 @@ class ModalOrchestrator:
             text += " (paused)"
         if status.pending:
             text += f" → {status.pending} {status.progress:.0%}"
+        if self._attention_on and self._attention_text:
+            text += f" | {self._attention_text}"
         return text
 
     def process(self, hands: HandsResult, frame=None) -> None:
@@ -132,6 +137,7 @@ class ModalOrchestrator:
             state = self._attention.process(frame, now, adapt=mode_on)
             facing = state.facing
             looking = state.looking if self._attention_gate == "always" else True
+            self._log_attention(state)
 
         if self._dominant == "right":
             dominant_lm, support_lm = hands.right, hands.left
@@ -174,6 +180,27 @@ class ModalOrchestrator:
             self._hud.stop()
         if self._attention is not None:
             self._attention.close()
+
+    def _log_attention(self, state) -> None:
+        if state.face and state.angle is not None:
+            self._attention_text = f"look {state.angle:.0f}°"
+        else:
+            self._attention_text = "look: no face"
+        key = (state.face, state.looking)
+        if key == self._last_attention:
+            return
+        self._last_attention = key
+        if not state.face:
+            logger.info("Look check: no face found — gestures count")
+        elif state.looking:
+            logger.info("Look check: looking at the screen (head %.0f° from the screen direction)", state.angle)
+        else:
+            logger.info(
+                "Look check: NOT looking (head %.0f° from the screen direction, limit %s°) — "
+                "hold 👌 1.5 s to turn the check off",
+                state.angle,
+                ATTENTION_MAX_ANGLE,
+            )
 
     def _on_event(self, event: str, mode: Mode) -> None:
         if event == "arm":

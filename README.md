@@ -174,7 +174,8 @@ Modal mode uses MediaPipe face tracking to see where your head is pointing. Look
 - an active mode pauses while you look away for ~1 s and resumes when you look back (the label shows "not looking");
 - the left hand is ignored while you look away;
 - if the camera can't find your face at all — e.g. you are too far away, lying in bed — gestures count (`ATTENTION_NO_FACE_ALLOWS`); the check only blocks when it can *see* you looking elsewhere;
-- **turn the check off / on with a gesture:** while OFF, hold 👌 (right hand) still for 1.5 s. A two-tone beep and the label confirm it. This lasts until you toggle again or restart.
+- **turn the check off / on with a gesture:** while OFF — or while the label says "not looking" — hold 👌 (right hand) still for 1.5 s. A two-tone beep and the label confirm it. This lasts until you toggle again or restart. The fist still pauses / turns off while "not looking";
+- the terminal logs every change ("Look check: NOT looking (head 41° from the screen direction …)") and the debug window (`DEBUG_GESTURES = True`) shows the current angle — handy to tune `ATTENTION_MAX_ANGLE`.
 
 The "screen direction" starts as "facing the camera" and slowly follows your posture while you use a mode. Head tilt (resting your head sideways) is ignored. The face model (~3.7 MB) is downloaded to `models/` on first run; if that fails, download it manually:
 

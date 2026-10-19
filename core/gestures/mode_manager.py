@@ -177,23 +177,6 @@ class ModeManager:
             self._process_off(hand, pose, now, facing)
             return
 
-        if not looking:
-            if not self._away:
-                self._away = True
-                self._clear_hold()
-                if not self.paused:
-                    self.handler.pause(now)
-                self._on_event("away", self.mode)
-            self._hold_target = "away"
-            self._hold_progress = 0.0
-            return
-        if self._away:
-            self._away = False
-            self._clear_hold()
-            if not self.paused:
-                self.handler.resume(hand, now)
-            self._on_event("back", self.mode)
-
         if pose == Pose.FIST and not hand.any_pinch:
             if not self.paused:
                 self.paused = True
@@ -208,6 +191,29 @@ class ModeManager:
                 self._fist_closed = True
             return
 
+        # Looking away pauses the mode. The fist above still pauses / turns off,
+        # and 👌 held still turns the look check off (e.g. when it is wrong).
+        if not looking:
+            if not self._away:
+                self._away = True
+                self._clear_hold()
+                if not self.paused:
+                    self.handler.pause(now)
+                self._on_event("away", self.mode)
+            if pose == Pose.OK:
+                self._update_toggle(hand, now)
+            else:
+                self._toggle_done = False
+                self._hold_target = "away"
+                self._hold_progress = 0.0
+            return
+        if self._away:
+            self._away = False
+            self._clear_hold()
+            if not self.paused:
+                self.handler.resume(hand, now)
+            self._on_event("back", self.mode)
+
         if self.paused:
             self.paused = False
             self._clear_hold()
@@ -218,6 +224,26 @@ class ModeManager:
         self.handler.process(hand, pose, now)
 
     # ── Internals ─────────────────────────────────────────────────────────────
+
+    def _update_toggle(self, hand: HandPose, now: float) -> None:
+        """👌 held still for ATTENTION_TOGGLE_HOLD_S → "toggle_attention" (once per 👌)."""
+        if self._toggle_done:
+            return
+        moved = (
+            self._hold_origin is not None
+            and math.dist(hand.wrist, self._hold_origin) / hand.scale > self._arm_stillness
+        )
+        if self._hold_target != "attention" or moved:
+            self._hold_target = "attention"
+            self._hold_since = now
+            self._hold_origin = hand.wrist
+            self._hold_progress = 0.0
+            return
+        self._hold_progress = min(1.0, (now - self._hold_since) / self._toggle_hold_s)
+        if now - self._hold_since >= self._toggle_hold_s:
+            self._clear_hold()
+            self._toggle_done = True
+            self._on_event("toggle_attention", self.mode)
 
     def _clear_hold(self) -> None:
         self._hold_target = None
@@ -238,23 +264,7 @@ class ModeManager:
         # 👌 held still: turn the look check (attention gate) off / on. Works whatever
         # the attention state, so it can always be undone.
         if pose == Pose.OK:
-            if self._toggle_done:
-                return
-            moved = (
-                self._hold_origin is not None
-                and math.dist(hand.wrist, self._hold_origin) / hand.scale > self._arm_stillness
-            )
-            if self._hold_target != "attention" or moved:
-                self._hold_target = "attention"
-                self._hold_since = now
-                self._hold_origin = hand.wrist
-                self._hold_progress = 0.0
-                return
-            self._hold_progress = min(1.0, (now - self._hold_since) / self._toggle_hold_s)
-            if now - self._hold_since >= self._toggle_hold_s:
-                self._clear_hold()
-                self._toggle_done = True
-                self._on_event("toggle_attention", self.mode)
+            self._update_toggle(hand, now)
             return
         self._toggle_done = False
 

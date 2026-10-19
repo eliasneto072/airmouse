@@ -513,3 +513,28 @@ def test_ok_sign_held_in_move_mode_is_a_drag_not_a_toggle():
     rig.hold(2.0, pose="open", pinch="index")
     assert rig.modal.attention_on
     assert rig.actuator.count("drag_start") == 1
+
+
+def test_while_not_looking_the_fist_still_turns_off():
+    att = FakeAttention()
+    rig = Rig(attention=att)
+    rig.arm()
+    att.looking = False
+    rig.hold(0.5)
+    assert rig.modal.status.pending == "away"
+    rig.hold(1.5, pose="fist")
+    assert rig.mode == Mode.DISARMED
+
+
+def test_while_not_looking_ok_sign_turns_the_check_off_and_the_mode_continues():
+    att = FakeAttention()
+    rig = Rig(attention=att)
+    rig.arm()
+    att.facing = att.looking = False          # e.g. lying in bed at an odd angle
+    rig.hold(0.5)
+    rig.hold(1.8, pose="open", pinch="index")
+    assert not rig.modal.attention_on
+    assert rig.mode == Mode.MOVE
+    rig.hold(0.3)
+    rig.tap()
+    assert rig.actuator.count("left_click") == 1

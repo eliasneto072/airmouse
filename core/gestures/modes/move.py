@@ -52,6 +52,7 @@ class MoveMode(ModeHandler):
         self._reset_gesture()
 
     def _reset_gesture(self) -> None:
+        self._ignore_pinch = False  # a pinch held when the mode starts / resumes is not a click
         self._pinch_since: float | None = None
         self._click_pending_since: float | None = None
         self._dragging = False
@@ -61,6 +62,7 @@ class MoveMode(ModeHandler):
 
     def enter(self, hand: HandPose, now: float) -> None:
         self._reset_gesture()
+        self._ignore_pinch = hand.any_pinch
         self._pointer.unfreeze()
         self._pointer.reset(sync=True)
 
@@ -72,6 +74,7 @@ class MoveMode(ModeHandler):
 
     def resume(self, hand: HandPose, now: float) -> None:
         self._reset_gesture()
+        self._ignore_pinch = hand.any_pinch
         self._pointer.unfreeze()
         self._pointer.reset(sync=False)  # clutch: re-anchor, no jump
 
@@ -86,6 +89,12 @@ class MoveMode(ModeHandler):
     # ── Per frame ─────────────────────────────────────────────────────────────
 
     def process(self, hand: HandPose, pose: Pose, now: float) -> None:
+        if self._ignore_pinch:
+            if hand.any_pinch:
+                self._pointer.update(hand, now)
+                return
+            self._ignore_pinch = False
+
         if self._click_pending_since is not None:
             if hand.pose == Pose.FIST or hand.folded:
                 logger.debug("Click cancelled: hand closed into a fist")
