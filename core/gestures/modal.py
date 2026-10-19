@@ -75,6 +75,7 @@ class ModalOrchestrator:
         self._toast: tuple[str, float] | None = None
         self._last_attention: tuple[bool, bool] | None = None  # (face, looking), for logging changes
         self._attention_text = ""
+        self._last_snapshot = 0.0
         self._classifier = PoseClassifier()
         self._support_classifier = PoseClassifier()
         self._support = SupportHand(actuator) if support_hand else None
@@ -170,6 +171,32 @@ class ModalOrchestrator:
 
         if self._hud is not None:
             self._hud.update(self.status)
+        if now - self._last_snapshot >= 2.0:
+            self._last_snapshot = now
+            self._log_snapshot(hand)
+
+    def _log_snapshot(self, hand) -> None:
+        """Periodic DEBUG line (goes to airmouse.log) to diagnose sessions after the fact."""
+        if not logger.isEnabledFor(logging.DEBUG):
+            return
+        status = self._manager.status
+        if hand is None:
+            hand_text = "right hand: none"
+        else:
+            hand_text = (
+                f"right hand: {hand.pose.value} size={hand.scale:.0f}px "
+                f"pinch={'I' if hand.pinch_index else ''}{'M' if hand.pinch_middle else ''}"
+            )
+        logger.debug(
+            "state mode=%s paused=%s pending=%s %.0f%% | %s | look check=%s %s",
+            status.mode.name,
+            status.paused,
+            status.pending,
+            status.progress * 100,
+            hand_text,
+            "on" if self._attention_on else "off",
+            self._attention_text,
+        )
 
     def shutdown(self) -> None:
         if self._support is not None:
@@ -197,7 +224,7 @@ class ModalOrchestrator:
         else:
             logger.info(
                 "Look check: NOT looking (head %.0f° from the screen direction, limit %s°) — "
-                "hold 👌 1.5 s to turn the check off",
+                "hold the OK sign 1.5 s to turn the check off",
                 state.angle,
                 ATTENTION_MAX_ANGLE,
             )

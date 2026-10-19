@@ -144,7 +144,10 @@ class PoseClassifier:
 
         if not any(extended) and folded:
             pose = Pose.FIST
-        elif self._pinch_index and extended[1:] == (True, True, True):
+        elif extended[1:] == (True, True, True) and (self._pinch_index or d_index < PINCH_INDEX_ENTER_RATIO):
+            # 👌: in a real OK sign the index curls into a ring, so its tip is close to
+            # the palm and does not count as a pinch — the three extended fingers are
+            # enough to tell it apart from a fist.
             pose = Pose.OK
         else:
             pose = FINGER_COUNT_POSES.get(extended, Pose.NONE)

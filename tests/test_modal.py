@@ -538,3 +538,10 @@ def test_while_not_looking_ok_sign_turns_the_check_off_and_the_mode_continues():
     rig.hold(0.3)
     rig.tap()
     assert rig.actuator.count("left_click") == 1
+
+
+def test_real_ok_sign_toggles_the_check_from_off():
+    att = FakeAttention()
+    rig = Rig(attention=att)
+    rig.hold(1.8, pose="ok")
+    assert not rig.modal.attention_on

@@ -232,6 +232,11 @@ FLIP_HANDEDNESS = False
 # gesture state, and pinch distances. Press Q in the window to quit.
 DEBUG_GESTURES = False
 
+# ── Log file ──────────────────────────────────────────────────────────────────
+# Everything printed in the terminal plus periodic DEBUG state lines go here
+# (overwritten on each start, git-ignored). Attach it when reporting a problem.
+LOG_FILE = "airmouse.log"         # None to disable
+
 # ── Windows OS ────────────────────────────────────────────────────────────────
 # Do not change these unless you understand the Windows scheduler implications.
 TIMER_RESOLUTION_MS = 1          # Sets Windows multimedia timer floor to 1ms

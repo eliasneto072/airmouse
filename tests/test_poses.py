@@ -98,3 +98,9 @@ def test_stabilizer_ignores_flicker_and_holds_through_none():
         t += 0.013
         stabilizer.update(Pose.TWO, t)
     assert stabilizer.pose == Pose.TWO
+
+
+@pytest.mark.parametrize("scale", [0.12, 0.25, 0.4])
+@pytest.mark.parametrize("rotation", [-30.0, 0.0, 30.0])
+def test_realistic_ok_sign_with_curled_index(scale, rotation):
+    assert PoseClassifier(*FRAME).classify(hand("ok", scale=scale, rotation=rotation)).pose == Pose.OK

@@ -37,6 +37,7 @@ _POSES = {
     "three": (True, True, True, False, False),
     "four": (True, True, True, True, False),
     "fist": (False, False, False, False, False),
+    "ok": (False, True, True, True, True),  # 👌: index curled into a ring with the thumb
 }
 
 _PINCH_TARGET = {"index": 8, "middle": 12}
@@ -53,7 +54,7 @@ def make_hand(
     """
     Args:
         pose:         "open" (5 fingers), "point", "peace", "three", "four" (thumb
-                      folded) or "fist"
+                      folded), "fist" or "ok" (a realistic 👌)
         pinch:        None, "index" or "middle" — put the thumb tip on that fingertip
         center:       wrist position (normalized x, y)
         scale:        hand size (see module docstring)
@@ -84,6 +85,13 @@ def make_hand(
     else:  # folded across the palm towards the pinky, tip below the thumb MCP
         pts[3] = (-0.22, -0.38)
         pts[4] = (0.05, -0.35)
+
+    if pose == "ok":  # a real 👌: the index bends towards the thumb, its tip ends up near the palm
+        pts[6] = (-0.32, -1.20)
+        pts[7] = (-0.42, -1.18)
+        pts[8] = (-0.45, -1.02)
+        pts[4] = (-0.48, -1.00)
+        pts[3] = (-0.55, -0.70)
 
     if pinch is not None:
         tu, tv = pts[_PINCH_TARGET[pinch]]

@@ -202,10 +202,10 @@ class ModeManager:
                 self._on_event("away", self.mode)
             if pose == Pose.OK:
                 self._update_toggle(hand, now)
-            else:
-                self._toggle_done = False
-                self._hold_target = "away"
-                self._hold_progress = 0.0
+                return
+            self._toggle_done = False
+            self._hold_target = "away"
+            self._hold_progress = 0.0
             return
         if self._away:
             self._away = False

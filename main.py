@@ -32,7 +32,7 @@ import psutil
 
 import cv2
 
-from config import PROCESS_PRIORITY, TIMER_RESOLUTION_MS, DEBUG_GESTURES
+from config import PROCESS_PRIORITY, TIMER_RESOLUTION_MS, DEBUG_GESTURES, LOG_FILE
 from core.camera import AsyncCamera
 from core.tracker import HandTracker
 from core.gestures import build_orchestrator
@@ -44,11 +44,19 @@ if DEBUG_GESTURES:
 
 # ── Logging ───────────────────────────────────────────────────────────────────
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-    datefmt="%H:%M:%S",
-)
+_formatter = logging.Formatter("%(asctime)s [%(levelname)s] %(name)s: %(message)s", datefmt="%H:%M:%S")
+_console = logging.StreamHandler()
+_console.setLevel(logging.INFO)
+_console.setFormatter(_formatter)
+_handlers: list[logging.Handler] = [_console]
+if LOG_FILE:
+    _file = logging.FileHandler(LOG_FILE, mode="w", encoding="utf-8")
+    _file.setLevel(logging.DEBUG)
+    _file.setFormatter(_formatter)
+    _handlers.append(_file)
+logging.basicConfig(level=logging.DEBUG if LOG_FILE else logging.INFO, handlers=_handlers)
+for _noisy in ("PIL", "matplotlib", "absl"):
+    logging.getLogger(_noisy).setLevel(logging.WARNING)
 logger = logging.getLogger("airmouse.main")
 
 
