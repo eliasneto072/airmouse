@@ -57,6 +57,7 @@ if LOG_FILE:
 logging.basicConfig(level=logging.DEBUG if LOG_FILE else logging.INFO, handlers=_handlers)
 for _noisy in ("PIL", "matplotlib", "absl"):
     logging.getLogger(_noisy).setLevel(logging.WARNING)
+logging.getLogger("core.tracker").setLevel(logging.INFO)  # per-frame handedness debug lines
 logger = logging.getLogger("airmouse.main")
 
 

@@ -109,9 +109,10 @@ class ModalOrchestrator:
         now = self._clock()
         if self._toast is not None and now - self._toast[1] < 1.5:
             return dataclasses.replace(status, support=self._toast[0])
-        if self._support is not None:
-            status = dataclasses.replace(status, support=self._support.status_text(now))
-        return status
+        support = self._support.status_text(now) if self._support is not None else None
+        if support is None and self._attention is not None and not self._attention_on:
+            support = "look off"  # a reminder that the look check was turned off with 👌
+        return dataclasses.replace(status, support=support)
 
     @property
     def attention_on(self) -> bool:

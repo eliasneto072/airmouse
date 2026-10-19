@@ -174,13 +174,15 @@ LEFT_HAND_BINDINGS = {
 # "start":  only starting a mode needs you to face the screen
 # "off":    no face tracking
 ATTENTION_GATE = "always"
-ATTENTION_MAX_ANGLE = 28.0        # degrees your head may turn away from the screen direction
+ATTENTION_MAX_ANGLE = 35.0        # degrees your head may turn away from the screen direction
 ATTENTION_AWAY_S = 0.8            # looking away this long pauses the mode
 ATTENTION_OVERRIDE_S = 2.0        # hold a start gesture this long to start anyway — and re-learn
                                   # where the screen is (e.g. after changing your posture a lot)
 ATTENTION_ADAPT_S = 8.0           # how fast the screen direction follows your posture while in a mode
-ATTENTION_EVERY_N_FRAMES = 3      # run face tracking every N camera frames
-ATTENTION_NO_FACE_ALLOWS = True   # no face found (e.g. too far from the camera, in bed) → gestures count
+ATTENTION_EVERY_N_FRAMES = 4      # run face tracking every N camera frames
+FACE_TRACKING_WIDTH = 640         # face tracking runs on a downscaled copy of the frame (much faster)
+ATTENTION_NO_FACE_ALLOWS = False  # False: no face found = not looking (strict). True: no face → gestures
+                                  # count (e.g. far from the camera). From far away, turn the check off with 👌.
 ATTENTION_TOGGLE_HOLD_S = 1.5     # while OFF, hold 👌 (right hand) this long to turn the look check off / on
 FACE_MODEL_PATH = "models/face_landmarker.task"  # downloaded automatically on first run
 FACE_MODEL_URL = "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task"

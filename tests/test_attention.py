@@ -56,15 +56,15 @@ def test_looking_away_is_debounced():
     assert att.update(face_direction(face(), W, H), t).looking     # back immediately
 
 
-def test_no_face_lets_gestures_through_by_default():
-    # e.g. lying in bed, too far from the camera for face tracking
-    state = Attention(max_angle=28, away_s=0.8).update(None, 0.0)
-    assert not state.face and state.facing and state.looking
-
-
-def test_no_face_can_be_treated_as_looking_away():
-    att = Attention(max_angle=28, away_s=0.8, no_face_allows=False)
+def test_no_face_is_not_looking_by_default():
+    att = Attention(max_angle=28, away_s=0.8)
     assert not att.update(None, 0.0).facing
+
+
+def test_no_face_can_let_gestures_through():
+    # e.g. lying in bed, too far from the camera for face tracking
+    state = Attention(max_angle=28, away_s=0.8, no_face_allows=True).update(None, 0.0)
+    assert not state.face and state.facing and state.looking
 
 
 def test_calibrate_makes_current_direction_the_screen():

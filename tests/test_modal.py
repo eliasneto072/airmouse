@@ -489,6 +489,8 @@ def test_ok_sign_held_while_off_turns_the_look_check_off_and_on():
     assert not rig.modal.attention_on
     assert rig.sounds[-1] == "attention_off"
     assert rig.modal.status.support == "look check OFF"
+    rig.hold(1.6)
+    assert rig.modal.status.support == "look off"   # stays visible as a reminder
     rig.hold(0.9)                                    # now ☝️ starts normally
     assert rig.mode == Mode.MOVE
 

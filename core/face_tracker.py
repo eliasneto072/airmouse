@@ -10,7 +10,14 @@ import urllib.request
 
 import cv2
 
-from config import ATTENTION_EVERY_N_FRAMES, CAMERA_HEIGHT, CAMERA_WIDTH, FACE_MODEL_PATH, FACE_MODEL_URL
+from config import (
+    ATTENTION_EVERY_N_FRAMES,
+    CAMERA_HEIGHT,
+    CAMERA_WIDTH,
+    FACE_MODEL_PATH,
+    FACE_MODEL_URL,
+    FACE_TRACKING_WIDTH,
+)
 from core.attention import Vector, face_direction
 
 logger = logging.getLogger(__name__)
@@ -60,6 +67,10 @@ class FaceTracker:
         if frame is None or (self._frame - 1) % self._every_n:
             return self._direction
         try:
+            height, width = frame.shape[:2]
+            if FACE_TRACKING_WIDTH and width > FACE_TRACKING_WIDTH:
+                small_h = round(height * FACE_TRACKING_WIDTH / width)
+                frame = cv2.resize(frame, (FACE_TRACKING_WIDTH, small_h), interpolation=cv2.INTER_AREA)
             rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             image = self._mp.Image(image_format=self._mp.ImageFormat.SRGB, data=rgb)
             timestamp_ms = max(int(time.perf_counter() * 1000), self._last_timestamp_ms + 1)
@@ -97,7 +108,7 @@ class AttentionGate:
         elif not self._warned and now - self._no_face_since > 10.0:
             self._warned = True
             logger.info(
-                "No face seen for 10 s (too far from the camera?) — the look check is letting gestures through."
+                "No face seen for 10 s (too far from the camera?) — hold the OK sign 1.5 s to turn the look check off."
             )
         return state
 
