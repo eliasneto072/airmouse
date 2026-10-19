@@ -54,6 +54,8 @@ def _pending_text(status: ModalStatus) -> tuple[str, str]:
         return "look at the screen", MUTED
     if status.pending == "away":
         return "not looking", MUTED
+    if status.pending == "attention":
+        return "look check on/off…", SUPPORT
     if status.pending == "disarm":
         return "paused · hold = off", STYLE[Mode.DISARMED][1]
     if status.pending:

@@ -14,7 +14,9 @@ is started with the override (holding the start gesture ATTENTION_OVERRIDE_S).
 
 ``facing`` is the instant decision (used to start modes); ``looking`` is
 debounced (turns False only after ATTENTION_AWAY_S facing away) and is used to
-pause an active mode.
+pause an active mode. When no face is found — typically because the user is
+too far from the camera — gestures count (ATTENTION_NO_FACE_ALLOWS): the gate
+only blocks when it can see the user looking elsewhere.
 """
 
 from __future__ import annotations
@@ -22,7 +24,7 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass
 
-from config import ATTENTION_ADAPT_S, ATTENTION_AWAY_S, ATTENTION_MAX_ANGLE
+from config import ATTENTION_ADAPT_S, ATTENTION_AWAY_S, ATTENTION_MAX_ANGLE, ATTENTION_NO_FACE_ALLOWS
 
 # MediaPipe Face Mesh landmark indices
 EYE_OUTER_A, EYE_OUTER_B, FOREHEAD, CHIN = 33, 263, 10, 152
@@ -88,8 +90,10 @@ class Attention:
         max_angle: float = ATTENTION_MAX_ANGLE,
         away_s: float = ATTENTION_AWAY_S,
         adapt_s: float = ATTENTION_ADAPT_S,
+        no_face_allows: bool = ATTENTION_NO_FACE_ALLOWS,
     ) -> None:
         self._max_angle = max_angle
+        self._no_face_allows = no_face_allows
         self._away_s = away_s
         self._adapt_s = adapt_s
         self.baseline: Vector = CAMERA_AXIS
@@ -104,11 +108,14 @@ class Attention:
         self._direction = direction
 
         angle = None if direction is None else angle_between(direction, self.baseline)
-        facing = angle is not None and angle <= self._max_angle
+        if angle is None:
+            facing = self._no_face_allows
+        else:
+            facing = angle <= self._max_angle
 
         if facing:
             self._away_since = None
-            if adapt and self._adapt_s > 0:
+            if adapt and self._adapt_s > 0 and direction is not None:
                 self._blend(direction, min(1.0, dt / self._adapt_s))
         elif self._away_since is None:
             self._away_since = now

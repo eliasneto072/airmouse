@@ -479,3 +479,37 @@ def test_start_gate_does_not_pause_active_modes():
     att.facing = att.looking = False
     rig.tap()
     assert rig.actuator.count("left_click") == 1
+
+
+def test_ok_sign_held_while_off_turns_the_look_check_off_and_on():
+    att = FakeAttention()
+    att.facing = att.looking = False
+    rig = Rig(attention=att)
+    rig.hold(1.8, pose="open", pinch="index")      # 👌 held still
+    assert not rig.modal.attention_on
+    assert rig.sounds[-1] == "attention_off"
+    assert rig.modal.status.support == "look check OFF"
+    rig.hold(0.9)                                    # now ☝️ starts normally
+    assert rig.mode == Mode.MOVE
+
+    rig.hold(1.4, pose="fist")                       # off again…
+    rig.hold(0.3, pose="open")
+    rig.hold(1.8, pose="open", pinch="index")        # …and 👌 turns the check back on
+    assert rig.modal.attention_on
+    assert rig.sounds[-1] == "attention_on"
+
+
+def test_short_ok_sign_does_not_toggle():
+    att = FakeAttention()
+    rig = Rig(attention=att)
+    rig.hold(0.8, pose="open", pinch="index")
+    assert rig.modal.attention_on
+
+
+def test_ok_sign_held_in_move_mode_is_a_drag_not_a_toggle():
+    att = FakeAttention()
+    rig = Rig(attention=att)
+    rig.arm()
+    rig.hold(2.0, pose="open", pinch="index")
+    assert rig.modal.attention_on
+    assert rig.actuator.count("drag_start") == 1

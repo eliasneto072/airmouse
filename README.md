@@ -172,7 +172,9 @@ Modal mode uses MediaPipe face tracking to see where your head is pointing. Look
 
 - a mode only starts while you face the screen — or if you keep holding the start gesture for 2 s, which also re-learns where your screen is (after a big posture change, or with the camera off to the side);
 - an active mode pauses while you look away for ~1 s and resumes when you look back (the label shows "not looking");
-- the left hand is ignored while you look away.
+- the left hand is ignored while you look away;
+- if the camera can't find your face at all — e.g. you are too far away, lying in bed — gestures count (`ATTENTION_NO_FACE_ALLOWS`); the check only blocks when it can *see* you looking elsewhere;
+- **turn the check off / on with a gesture:** while OFF, hold 👌 (right hand) still for 1.5 s. A two-tone beep and the label confirm it. This lasts until you toggle again or restart.
 
 The "screen direction" starts as "facing the camera" and slowly follows your posture while you use a mode. Head tilt (resting your head sideways) is ignored. The face model (~3.7 MB) is downloaded to `models/` on first run; if that fails, download it manually:
 
@@ -228,7 +230,7 @@ All parameters live in `config.py` — never scattered across modules. Personal 
 | "MediaPipe processing error" in the log | `MP_VIDEO_MODE` | `False` |
 | Pauses while you are looking at the screen | `ATTENTION_MAX_ANGLE` | Increase → try `35` — or hold a start gesture 2 s to re-learn the screen direction |
 | Still reacts when looking at the phone | `ATTENTION_MAX_ANGLE` | Decrease → try `22` |
-| Camera can't see your face | `ATTENTION_GATE` | `"off"` |
+| Camera can't see your face / you sit far away | 👌 held 1.5 s while OFF, or `ATTENTION_GATE` | `"off"` |
 
 </details>
 

@@ -69,7 +69,9 @@ class ModalOrchestrator:
             raise ValueError(f"ATTENTION_GATE must be 'always', 'start' or 'off', not {attention_gate!r}")
         self._attention = attention if attention_gate != "off" else None
         self._attention_gate = attention_gate
+        self._attention_on = self._attention is not None
         self._started = False
+        self._toast: tuple[str, float] | None = None
         self._classifier = PoseClassifier()
         self._support_classifier = PoseClassifier()
         self._support = SupportHand(actuator) if support_hand else None
@@ -100,9 +102,16 @@ class ModalOrchestrator:
     @property
     def status(self) -> ModalStatus:
         status = self._manager.status
+        now = self._clock()
+        if self._toast is not None and now - self._toast[1] < 1.5:
+            return dataclasses.replace(status, support=self._toast[0])
         if self._support is not None:
-            status = dataclasses.replace(status, support=self._support.status_text(self._clock()))
+            status = dataclasses.replace(status, support=self._support.status_text(now))
         return status
+
+    @property
+    def attention_on(self) -> bool:
+        return self._attention_on
 
     @property
     def right_state(self) -> str:
@@ -118,7 +127,7 @@ class ModalOrchestrator:
     def process(self, hands: HandsResult, frame=None) -> None:
         now = self._clock()
         facing = looking = True
-        if self._attention is not None:
+        if self._attention is not None and self._attention_on:
             mode_on = self._manager.mode != Mode.DISARMED and not self._manager.paused
             state = self._attention.process(frame, now, adapt=mode_on)
             facing = state.facing
@@ -136,7 +145,7 @@ class ModalOrchestrator:
             hand = self._classifier.classify(dominant_lm)
         self._started = False
         self._manager.process(hand, now, facing=facing, looking=looking)
-        if self._started and self._attention is not None and self._manager.started_with_override:
+        if self._started and self._attention_on and self._manager.started_with_override:
             self._attention.calibrate()  # started on purpose while "not facing": that is where the screen is
 
         if self._support is not None:
@@ -169,5 +178,13 @@ class ModalOrchestrator:
     def _on_event(self, event: str, mode: Mode) -> None:
         if event == "arm":
             self._started = True
+        if event == "toggle_attention":
+            if self._attention is None:
+                self._toast = ("look check unavailable", self._clock())
+                return
+            self._attention_on = not self._attention_on
+            self._toast = ("look check ON" if self._attention_on else "look check OFF", self._clock())
+            logger.info("Look check %s", "on" if self._attention_on else "off")
+            event = "attention_on" if self._attention_on else "attention_off"
         if self._sounds is not None:
             self._sounds.play(event)

@@ -96,9 +96,8 @@ class AttentionGate:
             self._no_face_since = now
         elif not self._warned and now - self._no_face_since > 10.0:
             self._warned = True
-            logger.warning(
-                "No face seen for 10 s — gestures are ignored while the camera cannot see you looking "
-                "at the screen. Frame your face, or set ATTENTION_GATE = \"off\" in config_local.py."
+            logger.info(
+                "No face seen for 10 s (too far from the camera?) — the look check is letting gestures through."
             )
         return state
 

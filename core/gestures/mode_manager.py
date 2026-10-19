@@ -32,6 +32,7 @@ from config import (
     ARM_HOLD_S,
     ARM_STILLNESS,
     ATTENTION_OVERRIDE_S,
+    ATTENTION_TOGGLE_HOLD_S,
     AUTO_DISARM_S,
     DISARM_HOLD_S,
     HAND_LOST_RELEASE_S,
@@ -66,7 +67,7 @@ class ModalStatus:
     mode: Mode
     paused: bool
     hand_visible: bool
-    pending: str | None   # "choose", "disarm", "look", "away" or the name of the mode being started
+    pending: str | None   # "choose", "disarm", "look", "away", "attention" or the mode being started
     progress: float       # 0..1 progress of the pending hold
     support: str | None = None  # what the left hand is holding / just did ("CTRL", "ALT+TAB", …)
 
@@ -87,6 +88,7 @@ class ModeManager:
         auto_disarm_s: float = AUTO_DISARM_S,
         hand_lost_release_s: float = HAND_LOST_RELEASE_S,
         override_s: float = ATTENTION_OVERRIDE_S,
+        toggle_hold_s: float = ATTENTION_TOGGLE_HOLD_S,
     ) -> None:
         self._handlers = handlers
         self._actuator = actuator
@@ -103,6 +105,8 @@ class ModeManager:
         self._auto_disarm_s = auto_disarm_s
         self._hand_lost_release_s = hand_lost_release_s
         self._override_s = override_s
+        self._toggle_hold_s = toggle_hold_s
+        self._toggle_done = False  # the 👌 has to be released before it toggles again
         self._away = False
         self._hold_blocked = False          # the pending start needs the override (not facing the screen)
         self.started_with_override = False  # the last mode start used the override
@@ -230,6 +234,29 @@ class ModeManager:
         if self._fist_closed:  # the fist just opened
             self._fist_closed = False
             self._primed_until = now + self._select_window_s
+
+        # 👌 held still: turn the look check (attention gate) off / on. Works whatever
+        # the attention state, so it can always be undone.
+        if pose == Pose.OK:
+            if self._toggle_done:
+                return
+            moved = (
+                self._hold_origin is not None
+                and math.dist(hand.wrist, self._hold_origin) / hand.scale > self._arm_stillness
+            )
+            if self._hold_target != "attention" or moved:
+                self._hold_target = "attention"
+                self._hold_since = now
+                self._hold_origin = hand.wrist
+                self._hold_progress = 0.0
+                return
+            self._hold_progress = min(1.0, (now - self._hold_since) / self._toggle_hold_s)
+            if now - self._hold_since >= self._toggle_hold_s:
+                self._clear_hold()
+                self._toggle_done = True
+                self._on_event("toggle_attention", self.mode)
+            return
+        self._toggle_done = False
 
         primed = self._primed_until is not None and now <= self._primed_until
         target = MODE_FOR_FINGERS.get(POSE_FINGER_COUNT.get(pose, 0))

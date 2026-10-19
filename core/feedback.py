@@ -21,6 +21,8 @@ class Sounds:
         "arm": ((880, 70), (1320, 90)),       # rising
         "disarm": ((660, 70), (440, 110)),    # falling
         "switch": ((1100, 60),),
+        "attention_on": ((990, 60), (1480, 60)),
+        "attention_off": ((1480, 60), (990, 60)),
     }
 
     def __init__(self) -> None:
