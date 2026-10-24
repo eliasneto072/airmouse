@@ -237,6 +237,13 @@ DEBUG_GESTURES = False
 # ── Tray icon ─────────────────────────────────────────────────────────────────
 TRAY_ENABLED = True               # icon next to the clock: pause, look check, start with Windows, quit
 
+# ── Settings page ─────────────────────────────────────────────────────────────
+# A page in your browser (tray icon → Settings) served by AirMouse itself on
+# this computer only (127.0.0.1). It opens by itself the first time, as a setup
+# guide. What you save there goes to %APPDATA%\AirMouse\settings.json.
+SETTINGS_UI_ENABLED = True
+SETTINGS_PORT = 47913             # if taken, the next free port is used
+
 # ── Log file ──────────────────────────────────────────────────────────────────
 # Everything printed in the terminal plus periodic DEBUG state lines go here
 # (overwritten on each start, git-ignored). Attach it when reporting a problem.
@@ -254,11 +261,17 @@ PROCESS_PRIORITY = 0x80
 # config_local.py next to this file, e.g.:
 #     CAMERA_INDEX = 1
 # It is git-ignored, so your values survive `git pull` and never end up in a commit.
+# What you save in the settings page (settings.json) is applied after it and wins.
 # The unit tests set AIRMOUSE_IGNORE_LOCAL_CONFIG=1 so they always see the defaults.
 import os as _os
+
+from core import settings_store as _settings_store
+
+_settings_store.DEFAULTS.update(_settings_store.snapshot(globals()))
 
 if _os.environ.get("AIRMOUSE_IGNORE_LOCAL_CONFIG") != "1":
     try:
         from config_local import *  # noqa: F401,F403
     except ImportError:
         pass
+    _settings_store.apply_saved(globals())

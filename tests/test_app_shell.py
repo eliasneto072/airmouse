@@ -82,3 +82,17 @@ def test_app_control_status_and_toggles():
     assert not control.attention_on
     control.toggle_pause()
     assert control.status_key() == "paused" and control.status_text() == "Paused"
+
+
+def test_restart_request_stops_the_loop():
+    control = AppControl()
+    assert not control.restart_requested and control.camera_error is None
+    control.request_restart()
+    assert control.restart_requested and control.stop.is_set()
+
+
+def test_single_instance_outside_windows():
+    from core import single_instance
+
+    assert single_instance.acquire(wait_s=1.0)  # no mutex off Windows, never waits
+    single_instance.release()

@@ -1,5 +1,5 @@
 # core/app_control.py
-"""State shared between the camera loop (main thread) and the tray icon (its own thread)."""
+"""State shared between the camera loop (main thread), the tray icon and the settings page."""
 
 from __future__ import annotations
 
@@ -11,11 +11,27 @@ class AppControl:
         self.stop = threading.Event()
         self.paused = False
         self.processor = None  # set by main.py once the gesture pipeline exists
+        self.actuator = None
+        # Written by the camera loop, read by the settings page (preview, status)
+        self.latest_frame = None
+        self.latest_hands = None
+        self.fps = 0.0
+        # Settings page
+        self.settings_url: str | None = None
+        self.restart_requested = False
+        self.camera_error: str | None = None  # the camera could not be opened (the page offers another)
 
     # ── Pause ─────────────────────────────────────────────────────────────────
 
     def toggle_pause(self) -> None:
         self.paused = not self.paused
+
+    # ── Restart (to apply saved settings) ─────────────────────────────────────
+
+    def request_restart(self) -> None:
+        """Stop the camera loop; main.py then starts a fresh AirMouse that reads the new settings."""
+        self.restart_requested = True
+        self.stop.set()
 
     # ── Look check (modal mode only) ──────────────────────────────────────────
 

@@ -28,6 +28,7 @@ import logging
 import os
 import time
 import traceback
+import webbrowser
 
 import sys
 
@@ -39,8 +40,16 @@ import psutil
 
 import cv2
 
-from config import PROCESS_PRIORITY, TIMER_RESOLUTION_MS, DEBUG_GESTURES, LOG_FILE, TRAY_ENABLED
-from core import single_instance
+from config import (
+    DEBUG_GESTURES,
+    LOG_FILE,
+    PROCESS_PRIORITY,
+    SETTINGS_PORT,
+    SETTINGS_UI_ENABLED,
+    TIMER_RESOLUTION_MS,
+    TRAY_ENABLED,
+)
+from core import settings_store, single_instance
 from core.app_control import AppControl
 from core.tracker import HandsResult
 from core.camera import AsyncCamera
@@ -161,8 +170,76 @@ def _restore_windows_settings(original: dict) -> None:
 
 # ── Main Loop ─────────────────────────────────────────────────────────────────
 
+RESTARTED_ENV = "AIRMOUSE_RESTARTED"
+APP_DIR = os.path.dirname(os.path.abspath(__file__))
+
+
+def _start_settings_page(control: AppControl, restarted: bool):
+    """The settings page server, or None (disabled, or no free local port)."""
+    if not SETTINGS_UI_ENABLED:
+        return None
+    import config
+    from core import preview, startup
+    from core.icon import MODE_COLORS
+    from core.settings_server import PORT_ENV, TOKEN_ENV, SettingsServer
+
+    port, token = SETTINGS_PORT, None
+    if restarted:  # same address as before, so the page that asked for the restart reconnects
+        port = int(os.environ.get(PORT_ENV) or SETTINGS_PORT)
+        token = os.environ.get(TOKEN_ENV) or None
+    server = SettingsServer(
+        control,
+        running=settings_store.snapshot(config),
+        port=port,
+        token=token,
+        render_preview=preview.render_preview,
+        probe_cameras=preview.probe_cameras,
+        startup=startup,
+        mode_colors=MODE_COLORS,
+        bind_wait_s=5.0 if restarted else 0.0,
+    )
+    if not server.start():
+        return None
+    control.settings_url = server.url
+    return server
+
+
+def _start_tray(control: AppControl, message: str):
+    if not TRAY_ENABLED:
+        return None
+    from core.tray import Tray
+
+    tray = Tray(control, LOG_FILE)
+    if not tray.start():
+        return None
+    tray.notify(message)
+    return tray
+
+
+def _restart(server) -> None:
+    """Start a fresh AirMouse (it reads the saved settings) once this one has let go of everything."""
+    import subprocess
+
+    from core import startup
+    from core.settings_server import PORT_ENV, TOKEN_ENV
+
+    env = dict(os.environ)
+    env[RESTARTED_ENV] = "1"
+    if server is not None and server.port:
+        env[TOKEN_ENV] = server.token
+        env[PORT_ENV] = str(server.port)
+    single_instance.release()
+    flags = 0x00000008 | 0x00000200 if sys.platform == "win32" else 0  # DETACHED_PROCESS | NEW_PROCESS_GROUP
+    try:
+        subprocess.Popen(startup.launch_command(), env=env, cwd=APP_DIR, close_fds=True, creationflags=flags)
+        logger.info("Restarting AirMouse to apply the new settings")
+    except OSError as exc:
+        logger.error("Could not restart AirMouse: %s", exc)
+
+
 def run() -> None:
-    if not single_instance.acquire():
+    restarted = os.environ.get(RESTARTED_ENV) == "1"
+    if not single_instance.acquire(wait_s=15.0 if restarted else 0.0):
         single_instance.show_already_running()
         return
 
@@ -176,6 +253,9 @@ def run() -> None:
     atexit.register(_emergency_restore)
 
     logger.info("=== AI Air Mouse starting ===")
+    for problem in settings_store.problems:
+        logger.warning("Settings file: %s", problem)
+    first_run = not settings_store.setup_done()
 
     # Apply OS settings before anything else
     original_settings.update(_apply_windows_performance())
@@ -189,27 +269,51 @@ def run() -> None:
 
     frame_count = 0
     fps_clock = time.perf_counter()
+    fps_logged = fps_clock
     tray_clock = 0.0
     none_count = 0
     control = AppControl()
+    control.actuator = actuator
     tray = None
+    processor = None
+    server = _start_settings_page(control, restarted)
 
-    with AsyncCamera() as camera, HandTracker() as tracker:
-        processor = build_orchestrator(actuator, desktop, trackpad)
-        control.processor = processor
+    if restarted:
+        hello = "Settings applied."
+    elif first_run and server is not None:
+        hello = "Welcome! Finish setting up AirMouse in your browser."
+    else:
+        hello = "AirMouse is running — right-click the icon for options."
 
-        if TRAY_ENABLED:
-            from core.tray import Tray
+    camera = AsyncCamera()
+    try:
+        camera.start()
+    except RuntimeError as exc:
+        logger.error("%s", exc)
+        control.camera_error = str(exc)
+        camera = None
 
-            tray = Tray(control, LOG_FILE)
-            if tray.start():
-                tray.notify("AirMouse is running — right-click the icon for options.")
-            else:
-                tray = None
+    try:
+        if camera is None:
+            # No camera: keep the tray and the settings page up so another camera can be chosen
+            tray = _start_tray(control, "AirMouse can't open the camera — choose another one in Settings.")
+            if server is None:
+                return
+            webbrowser.open(server.url + "#settings/camera")
+            while not control.stop.wait(0.3):
+                if tray is not None:
+                    tray.refresh()
+            return
 
-        logger.info("Running. Quit from the tray icon (or Ctrl+C in a terminal).")
+        with HandTracker() as tracker:
+            processor = build_orchestrator(actuator, desktop, trackpad)
+            control.processor = processor
+            tray = _start_tray(control, hello)
+            if server is not None and first_run and not restarted:
+                webbrowser.open(server.url + "#setup")
 
-        try:
+            logger.info("Running. Quit from the tray icon (or Ctrl+C in a terminal).")
+
             while not control.stop.is_set():
                 if tray is not None and time.perf_counter() - tray_clock > 0.3:
                     tray_clock = time.perf_counter()
@@ -218,6 +322,7 @@ def run() -> None:
                 if control.paused:
                     # Gestures paused from the tray: no tracking (saves CPU); an empty
                     # frame lets the pipeline release keys and turn itself off.
+                    control.latest_hands = None
                     processor.process(HandsResult(), None)
                     time.sleep(0.03)
                     continue
@@ -237,6 +342,8 @@ def run() -> None:
 
                 hands = tracker.process(frame)
                 processor.process(hands, frame)
+                control.latest_frame = frame
+                control.latest_hands = hands
 
                 if DEBUG_GESTURES:
                     annotated = draw_debug_frame(frame, hands, processor.right_state)
@@ -244,30 +351,39 @@ def run() -> None:
                     if cv2.waitKey(1) & 0xFF == ord('q'):
                         break
 
-                # FPS telemetry — log once per 5 seconds
+                # FPS: shown live in the settings page, logged once per 5 seconds
                 frame_count += 1
                 now = time.perf_counter()
-                if now - fps_clock >= 5.0:
-                    fps = frame_count / (now - fps_clock)
-                    logger.info("FPS: %.1f", fps)
+                if now - fps_clock >= 1.0:
+                    control.fps = frame_count / (now - fps_clock)
                     frame_count = 0
                     fps_clock = now
+                    if now - fps_logged >= 5.0:
+                        fps_logged = now
+                        logger.info("FPS: %.1f", control.fps)
 
-        except KeyboardInterrupt:
-            logger.info("Ctrl+C received — shutting down cleanly")
-        except Exception:
-            logger.error("Unhandled exception:\n%s", traceback.format_exc())
-        finally:
-            if tray is not None:
-                tray.stop()
-            if DEBUG_GESTURES:
-                cv2.destroyAllWindows()
-            # Never leave a mouse button or key pressed on exit
+    except KeyboardInterrupt:
+        logger.info("Ctrl+C received — shutting down cleanly")
+    except Exception:
+        logger.error("Unhandled exception:\n%s", traceback.format_exc())
+    finally:
+        if tray is not None:
+            tray.stop()
+        if server is not None:
+            server.stop()
+        if DEBUG_GESTURES:
+            cv2.destroyAllWindows()
+        # Never leave a mouse button or key pressed on exit
+        if processor is not None:
             processor.shutdown()
-            actuator.release_all()
-            _restore_windows_settings(original_settings)
-            original_settings.clear()  # prevent atexit double-restore
-            logger.info("=== AI Air Mouse stopped ===")
+        actuator.release_all()
+        if camera is not None:
+            camera.stop()
+        _restore_windows_settings(original_settings)
+        original_settings.clear()  # prevent atexit double-restore
+        logger.info("=== AI Air Mouse stopped ===")
+        if control.restart_requested:
+            _restart(server)
 
 
 if __name__ == "__main__":

@@ -67,7 +67,16 @@ curl.exe -L -o models\hand_landmarker.task https://storage.googleapis.com/mediap
 .\.venv\Scripts\python tools\create_shortcuts.py
 ```
 
-While running, AirMouse shows an icon next to the clock (its colour follows the current mode). Right-click it to pause gestures, turn the look check on/off, **start AirMouse with Windows**, open your settings or the log, and quit.
+While running, AirMouse shows an icon next to the clock (its colour follows the current mode). Click it to open the **settings page**; right-click it to pause gestures, turn the look check on/off, **start AirMouse with Windows**, open the log, and quit.
+
+### Settings page and first-run guide
+
+The first time AirMouse starts it opens a short guide in your browser: pick the camera (a snapshot of each one), choose classic or modal mode, then **practise with your own hand** — each step turns green as AirMouse recognises it (show your hand, turn on, click, pause, turn off). Later, click the tray icon for the same page with every user-facing setting: camera, mode, mouse hand, cursor speed, pinch sensitivity, gesture timings, look check, on-screen label and sounds, start with Windows. **Save and apply** restarts AirMouse in a few seconds; the page reconnects by itself.
+
+- The page is served by AirMouse on `127.0.0.1` only and every request needs a token that is part of the address the tray opens, so other web pages and other computers can't reach the camera preview or your settings.
+- Saved values go to `%APPDATA%\AirMouse\settings.json` and win over `config.py` and `config_local.py`. Any other setting can still be changed in `config_local.py` (tray → *Advanced*).
+- If the camera can't be opened, AirMouse keeps the tray icon and opens the page on the camera picker instead of quitting.
+- `SETTINGS_UI_ENABLED = False` turns the page off; `SETTINGS_PORT` picks the port (the next free one is used if it's taken).
 
 > Press **Ctrl+C** to exit. All Windows settings (timer resolution, pointer acceleration, process priority) are automatically restored on shutdown.
 

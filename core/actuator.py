@@ -21,6 +21,7 @@ Coordinate system for MOUSEEVENTF_ABSOLUTE:
 
 import ctypes
 import logging
+from collections import Counter
 
 from pynput.mouse import Button, Controller as MouseController
 from pynput.keyboard import Controller as KeyboardController, Key
@@ -97,6 +98,7 @@ class MouseActuator:
         self._dragging = False
         self._keyboard = KeyboardController()
         self._held_keys: set[str] = set()
+        self.counts: Counter = Counter()  # clicks / scrolls so far (the setup guide's practice step reads it)
         logger.info("MouseActuator ready (%dx%d desktop)", total_width, total_height)
 
     def position(self) -> tuple[int, int]:
@@ -135,9 +137,11 @@ class MouseActuator:
 
     def left_click(self) -> None:
         self._pynput.click(Button.left)
+        self.counts["click"] += 1
 
     def right_click(self) -> None:
         self._pynput.click(Button.right)
+        self.counts["right_click"] += 1
 
     def drag_start(self) -> None:
         if not self._dragging:
@@ -156,9 +160,11 @@ class MouseActuator:
         Scroll vertically. Positive ticks = scroll up, negative = scroll down.
         """
         self._pynput.scroll(0, ticks)
+        self.counts["scroll"] += 1
 
     def double_click(self) -> None:
         self._pynput.click(Button.left, 2)
+        self.counts["click"] += 1
 
     def win_d(self) -> None:
         with self._keyboard.pressed(Key.cmd):

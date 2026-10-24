@@ -4,8 +4,9 @@ System-tray icon: AirMouse runs without a terminal window.
 
 The icon's colour follows the current mode (grey = OFF, blue = MOVE, …) and
 its menu pauses gestures, toggles the look check and "Start with Windows",
-opens the settings / log in Notepad, and quits cleanly (restoring the Windows
-settings main.py changed). Needs `pystray`; without it AirMouse runs as before.
+opens the settings page (in the browser) or the log, and quits cleanly
+(restoring the Windows settings main.py changed). Needs `pystray`; without it
+AirMouse runs as before.
 """
 
 from __future__ import annotations
@@ -13,6 +14,7 @@ from __future__ import annotations
 import logging
 import subprocess
 import threading
+import webbrowser
 from pathlib import Path
 
 from core import startup
@@ -65,8 +67,9 @@ class Tray:
             ),
             item("Start with Windows", self._toggle_startup, checked=lambda _: self._startup_enabled()),
             pystray.Menu.SEPARATOR,
-            item("Settings (config_local.py)", self._open_settings),
+            item("Settings…", self._open_settings, default=True),
             item("Open log", self._open_log, visible=lambda _: bool(self._log_file)),
+            item("Advanced: edit config_local.py", self._open_config_local),
             pystray.Menu.SEPARATOR,
             item("Quit AirMouse", self._quit),
         )
@@ -134,6 +137,13 @@ class Tray:
             logger.warning("Could not change 'Start with Windows': %s", exc)
 
     def _open_settings(self) -> None:
+        """The settings page in the browser (a left click on the icon does this too)."""
+        if self._control.settings_url:
+            webbrowser.open(self._control.settings_url + "#settings")
+        else:
+            self._open_config_local()
+
+    def _open_config_local(self) -> None:
         path = APP_DIR / "config_local.py"
         if not path.exists():
             path.write_text(CONFIG_TEMPLATE, encoding="utf-8")

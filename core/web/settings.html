@@ -1,0 +1,1247 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<title>AirMouse</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='13' fill='%231d1f24'/%3E%3Ccircle cx='32' cy='32' r='23' fill='none' stroke='%234c8dff' stroke-width='5'/%3E%3Cpath d='M22 15v32l8-8 6 12 5-3-6-11h10z' fill='%23fff'/%3E%3C/svg%3E">
+<style>
+/* AirMouse settings page — served by AirMouse on 127.0.0.1.
+   Graphite is the tray icon's tile; the five mode colours are information
+   (which mode is on), never decoration. Bahnschrift is Windows' own DIN. */
+:root {
+  color-scheme: dark;
+  --bg: #1d1f24;
+  --raised: #262930;
+  --sunken: #16181c;
+  --line: #363a43;
+  --text: #f1f2f4;
+  --muted: #a9aeb8;
+  --faint: #6f747e;
+  --move: #4c8dff;
+  --scroll: #3fbf7f;
+  --shortcuts: #f2a33a;
+  --media: #a970ff;
+  --windows: #2bb3c0;
+  --off: #8a8f98;
+  --action: #4c8dff;
+  --action-text: #0c1322;
+  --done: #3fbf7f;
+  --warn: #f2a33a;
+  --ring: var(--off);
+  --display: "Bahnschrift", "DIN Alternate", "Barlow Semi Condensed", "Arial Narrow", sans-serif;
+  --body: "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, "Inter", sans-serif;
+  --radius-l: 20px;
+  --radius-m: 12px;
+  --radius-s: 8px;
+}
+@media (prefers-color-scheme: light) {
+  :root {
+    color-scheme: light;
+    --bg: #eceef1;
+    --raised: #ffffff;
+    --sunken: #dfe2e7;
+    --line: #cfd3da;
+    --text: #1d1f24;
+    --muted: #555b65;
+    --faint: #8a9099;
+    --move: #2f6fe0;
+    --scroll: #1d8a54;
+    --shortcuts: #b06a0b;
+    --media: #7a42d6;
+    --windows: #0f7c87;
+    --off: #6b7079;
+    --action: #2f6fe0;
+    --action-text: #ffffff;
+    --done: #1d8a54;
+    --warn: #b06a0b;
+  }
+}
+
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 16px/1.5 var(--body);
+  min-height: 100vh;
+}
+button, input { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--action); outline-offset: 2px; }
+[hidden] { display: none !important; }
+.visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* ── Top bar ─────────────────────────────────────────────── */
+.top {
+  display: flex;
+  align-items: center;
+  gap: 28px;
+  padding: 18px clamp(16px, 4vw, 40px);
+}
+.brand { display: flex; align-items: center; gap: 10px; font: 600 21px/1 var(--display); letter-spacing: .01em; }
+.brand svg { width: 30px; height: 30px; flex: none; }
+.brand .ring { stroke: var(--ring); transition: stroke .25s; }
+.views { display: flex; gap: 4px; }
+.views a {
+  white-space: nowrap;
+  color: var(--muted);
+  text-decoration: none;
+  padding: 7px 12px;
+  border-radius: 999px;
+}
+.views a:hover { color: var(--text); }
+.views a[aria-current="page"] { color: var(--text); background: var(--raised); }
+.lang { margin-left: auto; display: flex; gap: 2px; }
+@media (max-width: 560px) {
+  .top { gap: 10px; padding-top: 12px; }
+  .brand span { display: none; }
+  .views a { padding: 6px 10px; }
+}
+.lang button {
+  background: none; border: 0; padding: 6px 8px; border-radius: 6px;
+  color: var(--faint); cursor: pointer; font-size: 14px;
+}
+.lang button[aria-pressed="true"] { color: var(--text); }
+
+/* ── Layout ─────────────────────────────────────────────── */
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+  gap: clamp(24px, 4vw, 56px);
+  padding: 8px clamp(16px, 4vw, 40px) 120px;
+  max-width: 1400px;
+  margin: 0 auto;
+  align-items: start;
+}
+.mirror-col { position: sticky; top: 16px; }
+@media (max-width: 900px) {
+  .layout { grid-template-columns: 1fr; }
+  .mirror-col { position: static; }
+}
+
+/* ── The mirror: the camera, as you see yourself ─────────── */
+.mirror {
+  position: relative;
+  margin: 0;
+  aspect-ratio: 16 / 9;
+  border-radius: var(--radius-l);
+  background: var(--sunken);
+  overflow: hidden;
+  box-shadow: 0 0 0 3px var(--ring);
+  transition: box-shadow .25s;
+}
+.mirror img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.mirror-empty {
+  position: absolute; inset: 0;
+  display: grid; place-content: center; text-align: center;
+  padding: 24px; color: var(--muted);
+}
+.mirror-empty strong { display: block; color: var(--text); font: 600 20px/1.3 var(--display); margin-bottom: 4px; }
+.look {
+  position: absolute; left: 12px; top: 12px;
+  padding: 4px 10px; border-radius: 999px;
+  background: rgba(16, 18, 22, .72); color: #f1f2f4;
+  font-size: 13px;
+}
+.look.away { background: rgba(120, 72, 6, .85); }
+
+.readout {
+  display: flex; align-items: baseline; flex-wrap: wrap;
+  gap: 6px 16px;
+  margin: 18px 4px 0;
+}
+.readout .mode { font: 600 26px/1.1 var(--display); color: var(--ring); transition: color .25s; }
+.readout .pose { font-size: 17px; }
+.readout .pending { color: var(--muted); }
+.readout .meta { margin-left: auto; color: var(--faint); font-size: 14px; font-variant-numeric: tabular-nums; }
+.support-chip {
+  font-size: 13px; padding: 2px 9px; border-radius: 999px;
+  border: 1px solid var(--line); color: var(--muted);
+}
+
+/* The finger strip: 1–5 fingers start the five modes */
+.fingers {
+  list-style: none; margin: 22px 0 0; padding: 0;
+  display: grid; grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 6px;
+}
+.fingers li { --c: var(--off); padding: 4px 4px 0; color: var(--faint); }
+.fingers .num {
+  display: block;
+  font: 600 clamp(44px, 6vw, 76px)/.9 var(--display);
+  font-stretch: 75%;
+  font-variant-numeric: tabular-nums;
+  transition: color .2s;
+}
+.fingers .lbl { display: block; font-size: 14px; margin-top: 6px; }
+.fingers .hint { display: block; font-size: 12px; color: var(--faint); min-height: 1.4em; }
+.fingers .bar { display: block; height: 3px; margin-top: 8px; border-radius: 2px; background: var(--line); overflow: hidden; }
+.fingers .bar i { display: block; height: 100%; width: 0; background: var(--c); }
+.fingers li[data-mode="move"] { --c: var(--move); }
+.fingers li[data-mode="scroll"] { --c: var(--scroll); }
+.fingers li[data-mode="shortcuts"] { --c: var(--shortcuts); }
+.fingers li[data-mode="media"] { --c: var(--media); }
+.fingers li[data-mode="windows"] { --c: var(--windows); }
+.fingers li.on .num, .fingers li.on .lbl { color: var(--c); }
+.fingers li.on .bar i { width: 100%; }
+.fingers li.off-list { opacity: .35; }
+.classic-note { color: var(--muted); margin: 18px 4px 0; max-width: 46ch; }
+
+/* ── Panel (right column) ───────────────────────────────── */
+.panel { min-width: 0; }
+.panel h1 {
+  font: 600 clamp(28px, 3vw, 36px)/1.15 var(--display);
+  margin: 0 0 10px;
+  letter-spacing: -.005em;
+}
+.panel h2 {
+  font: 600 22px/1.2 var(--display);
+  margin: 0 0 4px;
+}
+.lead { color: var(--muted); margin: 0 0 24px; max-width: 52ch; }
+
+/* Wizard steps: a real sequence */
+.steps {
+  list-style: none; margin: 0 0 28px; padding: 0;
+  display: flex; flex-wrap: wrap; gap: 4px 22px;
+  counter-reset: step;
+}
+.steps li { counter-increment: step; color: var(--faint); font-size: 15px; }
+.steps li::before { content: counter(step); font: 600 15px/1 var(--display); margin-right: 7px; }
+.steps li[aria-current="step"] { color: var(--text); }
+.steps li[aria-current="step"]::before { color: var(--action); }
+.steps li.done { color: var(--muted); }
+.steps li.done::before { content: "✓"; color: var(--done); }
+
+.actions { display: flex; align-items: center; gap: 12px; margin-top: 32px; flex-wrap: wrap; }
+.actions .spacer { flex: 1; }
+.btn {
+  border: 0; border-radius: 999px; cursor: pointer;
+  padding: 11px 22px; font-weight: 600;
+  background: var(--action); color: var(--action-text);
+}
+.btn:hover { filter: brightness(1.08); }
+.btn:disabled { opacity: .5; cursor: default; filter: none; }
+.btn.quiet { background: var(--raised); color: var(--text); font-weight: 500; }
+.link {
+  background: none; border: 0; padding: 4px 0; cursor: pointer;
+  color: var(--muted); text-decoration: underline; text-underline-offset: 3px;
+}
+.link:hover { color: var(--text); }
+
+/* Camera picker */
+.cams { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 14px; }
+.cam {
+  display: block; width: 100%; text-align: left; cursor: pointer;
+  background: none; border: 0; padding: 0;
+}
+.cam .shot {
+  display: block; aspect-ratio: 16 / 9; border-radius: var(--radius-m);
+  background: var(--sunken) center / cover no-repeat;
+  box-shadow: 0 0 0 1px var(--line);
+}
+.cam[aria-checked="true"] .shot { box-shadow: 0 0 0 3px var(--action); }
+.cam .name { display: flex; gap: 8px; align-items: baseline; margin-top: 8px; font-weight: 600; }
+.cam .tag, .row .tag { font-weight: 400; font-size: 13px; color: var(--muted); }
+.cam .noimg { display: grid; place-items: center; height: 100%; color: var(--faint); font-size: 14px; }
+.cams-status { color: var(--muted); margin: 12px 0 0; }
+
+/* Big choices (wizard) */
+.choices { display: grid; gap: 12px; }
+.choice {
+  display: grid; grid-template-columns: auto 1fr; gap: 4px 14px;
+  padding: 16px 18px; border-radius: var(--radius-m);
+  background: var(--raised); cursor: pointer;
+  box-shadow: 0 0 0 1px var(--line);
+}
+.choice:has(input:checked) { box-shadow: 0 0 0 2px var(--action); }
+.choice input { grid-row: span 2; margin: 4px 0 0; accent-color: var(--action); width: 18px; height: 18px; }
+.choice b { font: 600 19px/1.3 var(--display); }
+.choice small { color: var(--muted); font-size: 15px; grid-column: 2; }
+.choice .rec { color: var(--muted); font: 400 14px var(--body); margin-left: 8px; }
+
+/* Setting rows */
+.section { padding: 28px 0; border-top: 1px solid var(--line); scroll-margin-top: 16px; }
+.section:first-of-type { border-top: 0; padding-top: 4px; }
+.section > p { color: var(--muted); margin: 0 0 8px; max-width: 56ch; font-size: 15px; }
+.row {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto;
+  gap: 6px 24px; align-items: center;
+  padding: 14px 0;
+}
+.row + .row { border-top: 1px dashed var(--line); }
+.row .label { font-weight: 600; }
+.row .help { grid-column: 1 / -1; color: var(--muted); font-size: 14px; margin-top: -2px; max-width: 60ch; }
+.row .reset { font-size: 13px; margin-left: 10px; }
+.row.wide { grid-template-columns: 1fr; }
+@media (max-width: 560px) {
+  .row { grid-template-columns: 1fr; }
+}
+
+.seg { display: inline-flex; flex-wrap: wrap; background: var(--sunken); border-radius: 999px; padding: 3px; gap: 2px; }
+.seg button {
+  border: 0; background: none; cursor: pointer; border-radius: 999px;
+  padding: 6px 14px; color: var(--muted); font-size: 15px;
+}
+.seg button[aria-checked="true"] { background: var(--raised); color: var(--text); box-shadow: 0 1px 2px rgba(0,0,0,.25); }
+
+.switch { position: relative; display: inline-block; width: 46px; height: 26px; flex: none; }
+.switch input { position: absolute; inset: 0; opacity: 0; margin: 0; cursor: pointer; }
+.switch span {
+  position: absolute; inset: 0; border-radius: 999px; background: var(--sunken);
+  box-shadow: inset 0 0 0 1px var(--line); transition: background .15s; pointer-events: none;
+}
+.switch span::after {
+  content: ""; position: absolute; left: 3px; top: 3px; width: 20px; height: 20px;
+  border-radius: 50%; background: var(--muted); transition: transform .15s, background .15s;
+}
+.switch input:checked + span { background: var(--action); box-shadow: none; }
+.switch input:checked + span::after { transform: translateX(20px); background: var(--action-text); }
+.switch input:focus-visible + span { outline: 2px solid var(--action); outline-offset: 2px; }
+
+.slider { display: grid; grid-template-columns: auto minmax(140px, 220px) auto; align-items: center; gap: 10px; }
+.slider input { width: 100%; accent-color: var(--action); }
+.slider output { min-width: 4.5ch; text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; }
+.slider .end { font-size: 13px; color: var(--faint); }
+
+.corners {
+  position: relative; width: 112px; height: 70px; border-radius: 8px;
+  background: var(--sunken); box-shadow: inset 0 0 0 2px var(--line);
+}
+.corners::after { /* the taskbar */
+  content: ""; position: absolute; left: 2px; right: 2px; bottom: 2px; height: 7px;
+  border-radius: 0 0 6px 6px; background: var(--line);
+}
+.corners button {
+  position: absolute; width: 30px; height: 18px; border: 0; padding: 0; cursor: pointer;
+  border-radius: 4px; background: var(--raised); box-shadow: inset 0 0 0 1px var(--line); z-index: 1;
+}
+.corners button[aria-checked="true"] { background: var(--action); box-shadow: none; }
+.corners .top-left { left: 7px; top: 7px; }
+.corners .top-right { right: 7px; top: 7px; }
+.corners .bottom-left { left: 7px; bottom: 14px; }
+.corners .bottom-right { right: 7px; bottom: 14px; }
+.modes { display: flex; flex-wrap: wrap; gap: 8px; }
+.modes label {
+  --c: var(--off);
+  display: inline-flex; align-items: center; gap: 8px; cursor: pointer;
+  padding: 6px 12px 6px 8px; border-radius: 999px; background: var(--sunken);
+  color: var(--muted);
+}
+.modes input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.modes .n { font: 600 18px/1 var(--display); width: 1.2em; text-align: center; }
+.modes label:has(input:checked) { color: var(--text); box-shadow: inset 0 0 0 2px var(--c); }
+.modes label:has(input:checked) .n { color: var(--c); }
+.modes label:has(input:focus-visible) { outline: 2px solid var(--action); outline-offset: 2px; }
+
+.note { background: var(--raised); border-radius: var(--radius-m); padding: 14px 16px; margin: 0 0 20px; }
+.note.warn { box-shadow: inset 3px 0 0 var(--warn); }
+.note .link { margin-left: 6px; }
+.path { font-size: 13px; color: var(--faint); word-break: break-all; }
+
+/* Practice checklist */
+.practice { list-style: none; margin: 0; padding: 0; counter-reset: p; }
+.practice li {
+  counter-increment: p;
+  display: grid; grid-template-columns: 34px 1fr; gap: 2px 14px;
+  padding: 14px 0; color: var(--faint);
+}
+.practice li + li { border-top: 1px dashed var(--line); }
+.practice li::before {
+  content: counter(p);
+  grid-row: span 2;
+  display: grid; place-items: center;
+  width: 34px; height: 34px; border-radius: 50%;
+  box-shadow: inset 0 0 0 2px var(--line);
+  font: 600 17px/1 var(--display);
+}
+.practice li b { font-weight: 600; }
+.practice li small { font-size: 14px; }
+.practice li.now { color: var(--text); }
+.practice li.now::before { box-shadow: inset 0 0 0 2px var(--action); color: var(--action); }
+.practice li.now small { color: var(--muted); }
+.practice li.done { color: var(--muted); }
+.practice li.done::before { content: "✓"; background: var(--done); color: var(--bg); box-shadow: none; }
+.tip { color: var(--muted); margin: 18px 0 0; font-size: 15px; max-width: 56ch; }
+.gaze { color: var(--warn); margin: 14px 0 0; font-size: 15px; }
+
+/* Save bar */
+.savebar {
+  position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%);
+  width: min(640px, calc(100% - 32px));
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  padding: 12px 12px 12px 20px; border-radius: 999px;
+  background: var(--raised); box-shadow: 0 0 0 1px var(--line), 0 12px 32px rgba(0,0,0,.35);
+}
+.savebar p { margin: 0; flex: 1; min-width: 12ch; }
+
+/* Restart overlay */
+.overlay {
+  position: fixed; inset: 0; z-index: 10;
+  display: grid; place-items: center; padding: 24px;
+  background: color-mix(in srgb, var(--bg) 88%, transparent);
+  backdrop-filter: blur(4px);
+}
+.overlay div { max-width: 30rem; text-align: center; }
+.overlay strong { display: block; font: 600 26px/1.2 var(--display); margin-bottom: 8px; }
+.overlay p { color: var(--muted); margin: 0; }
+.spinner {
+  width: 40px; height: 40px; margin: 0 auto 18px; border-radius: 50%;
+  border: 3px solid var(--line); border-top-color: var(--action);
+  animation: spin 1s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.toast {
+  position: fixed; left: 50%; top: 18px; transform: translate(-50%, -12px);
+  padding: 10px 18px; border-radius: 999px; z-index: 11;
+  background: var(--text); color: var(--bg); font-weight: 600;
+  opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s;
+}
+.toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition: none !important; animation-duration: 3s !important; }
+}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="brand">
+    <svg viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="13" fill="#1d1f24"/><circle class="ring" cx="32" cy="32" r="23" fill="none" stroke-width="5"/><path d="M22 15v32l8-8 6 12 5-3-6-11h10z" fill="#fff"/></svg>
+    <span>AirMouse</span>
+  </div>
+  <nav class="views" aria-label="AirMouse">
+    <a href="#setup" data-view="setup" data-t="nav_setup"></a>
+    <a href="#settings" data-view="settings" data-t="nav_settings"></a>
+  </nav>
+  <div class="lang" role="group" aria-label="Idioma / Language">
+    <button type="button" data-lang="pt">PT</button>
+    <button type="button" data-lang="en">EN</button>
+  </div>
+</header>
+
+<main class="layout">
+  <aside class="mirror-col" aria-label="Câmera">
+    <figure class="mirror">
+      <img id="preview" alt="" hidden>
+      <div class="mirror-empty" id="mirrorEmpty"><div><strong id="mirrorTitle"></strong><span id="mirrorText"></span></div></div>
+      <span class="look" id="look" hidden></span>
+    </figure>
+    <div class="readout" aria-live="polite">
+      <span class="mode" id="modeName"></span>
+      <span class="pose" id="pose"></span>
+      <span class="pending" id="pending"></span>
+      <span class="support-chip" id="support" hidden></span>
+      <span class="meta" id="fps"></span>
+    </div>
+    <ol class="fingers" id="fingers"></ol>
+    <p class="classic-note" id="classicNote" hidden></p>
+  </aside>
+
+  <section class="panel" id="panel"></section>
+</main>
+
+<div class="savebar" id="saveBar" hidden>
+  <p id="saveText"></p>
+  <button type="button" class="btn quiet" id="discardBtn" data-t="discard"></button>
+  <button type="button" class="btn" id="saveBtn" data-t="save_apply"></button>
+</div>
+
+<div class="overlay" id="overlay" hidden>
+  <div role="alert">
+    <div class="spinner" id="overlaySpin"></div>
+    <strong id="overlayTitle"></strong>
+    <p id="overlayText"></p>
+  </div>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+"use strict";
+const TOKEN = "__AIRMOUSE_TOKEN__";
+
+// ── Words ──────────────────────────────────────────────────────────────────
+const WORDS = {
+  pt: {
+    nav_setup: "Primeiros passos", nav_settings: "Ajustes",
+    mode_disarmed: "Desligado", mode_move: "Mover", mode_scroll: "Rolar", mode_shortcuts: "Atalhos",
+    mode_media: "Mídia", mode_windows: "Janelas", mode_classic: "Clássico", mode_paused: "Pausado",
+    hint_windows: "✊ e depois 🖐️",
+    pose_none: "", pose_fist: "✊ punho", pose_one: "☝️ 1 dedo", pose_two: "✌️ 2 dedos", pose_three: "3 dedos",
+    pose_four: "4 dedos", pose_five: "🖐️ mão aberta", pose_ok: "👌 ok", pose_pinch: "🤏 pinça",
+    no_hand: "nenhuma mão",
+    pend_choose: "escolha um modo", pend_disarm: "desligando…", pend_look: "olhe para a tela",
+    pend_away: "você olhou para outro lado", pend_attention: "trocando a checagem do olhar…",
+    pend_start: "ligando {mode}…",
+    support_seen: "outra mão", look_on: "olhando para a tela", look_off: "olhando para outro lado ({angle}°)",
+    look_noface: "rosto não encontrado", fps: "{fps} quadros/s",
+    cam_wait_title: "Esperando a câmera", cam_wait_text: "A imagem aparece aqui em instantes.",
+    cam_error_title: "A câmera não abriu", cam_error_text: "Escolha outra câmera ao lado e salve.",
+    paused_title: "Gestos pausados", paused_text: "Retome pelo ícone do AirMouse ao lado do relógio.",
+    lost_title: "Sem conexão com o AirMouse", lost_text: "Ele foi fechado? Abra de novo pelo menu Iniciar.",
+    classic_note: "Modo clássico: sempre ligado. A mão direita move o cursor e faz cliques com pinças.",
+    step_camera: "Câmera", step_use: "Jeito de usar", step_practice: "Treino", step_done: "Pronto",
+    s1_title: "Qual câmera enxerga você?", s1_lead: "Escolha a imagem em que você aparece. Dá para trocar depois em Ajustes.",
+    s2_title: "Como o AirMouse deve funcionar?", s2_lead: "Você pode mudar tudo isso depois.",
+    opt_modal: "Por modos", opt_modal_desc: "Começa desligado. Mostre de 1 a 5 dedos parados para escolher o que fazer, feche a mão para pausar. Mão parada não faz nada, bom para usar reclinado.",
+    opt_classic: "Clássico", opt_classic_desc: "Sempre ligado, com os gestos originais do projeto. Qualquer movimento da mão mexe o cursor.",
+    recommended: "recomendado",
+    s3_title: "Vamos testar com a sua mão", s3_lead: "Siga os passos olhando para a imagem. Cada um fica verde quando o AirMouse reconhece.",
+    s4_title: "Tudo pronto", s4_lead: "O AirMouse fica no ícone ao lado do relógio. Clique duas vezes nele para voltar a estes ajustes.",
+    back: "Voltar", next: "Continuar", finish: "Concluir", skip_setup: "Pular e ir para os ajustes", skip_practice: "Pular treino",
+    p_hand: "Mostre a mão {hand} para a câmera", p_hand_d: "Ela aparece desenhada na imagem.",
+    p_on: "Ligue: deixe só o indicador levantado ☝️, parado", p_on_d: "Segure um instante até aparecer “Mover”.",
+    p_click: "Clique: encoste o polegar no indicador e solte", p_click_d: "Mova a mão para levar o cursor; a pinça clica.",
+    p_pause: "Pause: feche a mão rapidinho ✊", p_pause_d: "Abra de novo para continuar de onde parou.",
+    p_off: "Desligue: segure a mão fechada", p_off_d: "Depois de um segundo aparece “Desligado”.",
+    p_move: "Mova a mão devagar", p_move_d: "O cursor acompanha.",
+    p_tip: "Outros modos, com tudo desligado: 2 dedos ✌️ rolam a página, 3 abrem atalhos, 4 controlam a mídia. Para as janelas, feche a mão e depois abra 🖐️.",
+    gaze_hint: "Olhe para a tela: com a checagem do olhar ligada, o AirMouse ignora a mão quando você olha para outro lado.",
+    hand_right: "direita", hand_left: "esquerda",
+    sec_camera: "Câmera", sec_use: "Jeito de usar", sec_cursor: "Cursor e clique", sec_timing: "Tempo dos gestos",
+    sec_look: "Olhar para a tela", sec_feedback: "Avisos", sec_system: "Sistema",
+    sec_look_p: "Usa o seu rosto na câmera para saber se você está olhando para a tela. Olhou para o celular, o AirMouse ignora a mão.",
+    INTERACTION_MODE: "Funcionamento", DOMINANT_HAND: "Mão do mouse",
+    LEFT_HAND_ENABLED: "Atalhos com a outra mão", LEFT_HAND_ENABLED_h: "Alt+Tab, voltar e avançar, área de trabalho e outros atalhos.",
+    MODES_ENABLED: "Modos disponíveis", MODES_ENABLED_h: "Desmarque os que você não usa: menos chance de ligar sem querer.",
+    POINTER_SPEED: "Velocidade do cursor", CURSOR_MAPPING: "Movimento",
+    CURSOR_MAPPING_h: "Como trackpad: o cursor anda conforme a mão se move. Posição: cada ponto da câmera é um ponto da tela.",
+    opt_relative: "Como trackpad", opt_absolute: "Posição",
+    PINCH_INDEX_ENTER_RATIO: "Clique com a pinça", PINCH_INDEX_ENTER_RATIO_h: "Quão perto o polegar precisa chegar do indicador para clicar.",
+    end_firm: "encostar", end_easy: "aproximar",
+    ARM_HOLD_S: "Segurar os dedos para ligar", DISARM_HOLD_S: "Segurar o punho para desligar",
+    DISARM_HOLD_S_h: "Um punho mais curto que isso só pausa.",
+    SCROLL_TICKS_PER_HAND_LENGTH: "Rolagem por gesto", SCROLL_TICKS_PER_HAND_LENGTH_h: "Quanto a página rola a cada movimento rápido da mão no modo Rolar.",
+    ATTENTION_GATE: "Checar o olhar", opt_always: "Sempre", opt_start: "Só para ligar", opt_off: "Nunca",
+    ATTENTION_GATE_h: "Sempre: um modo pausa enquanto você olha para outro lado. Só para ligar: vale apenas para começar.",
+    ATTENTION_MAX_ANGLE: "Quanto posso virar a cabeça",
+    HUD_ENABLED: "Mostrar o modo na tela", HUD_POSITION: "Posição do aviso",
+    opt_bottom_right: "Embaixo à direita", opt_bottom_left: "Embaixo à esquerda", opt_top_right: "Em cima à direita", opt_top_left: "Em cima à esquerda",
+    SOUNDS_ENABLED: "Sons ao ligar, trocar e desligar",
+    opt_right: "Direita", opt_left: "Esquerda",
+    startup: "Iniciar com o Windows", startup_h: "O AirMouse abre sozinho quando você entra no Windows.",
+    startup_na: "Disponível só no Windows.",
+    redo: "Primeiros passos", redo_h: "Câmera, jeito de usar e o treino com a mão.", redo_btn: "Refazer",
+    change_camera: "Trocar de câmera", file: "Arquivo de ajustes",
+    reset: "voltar ao padrão", seconds: "{v} s", degrees: "{v}°", lines: "{v} linhas",
+    finding_cams: "Procurando câmeras… leva alguns segundos.", find_again: "Procurar de novo",
+    no_cams: "Nenhuma câmera encontrada. Conecte uma e procure de novo.",
+    camera_n: "Câmera {n}", in_use: "em uso", selected: "escolhida", no_image: "sem imagem",
+    changed_one: "Você mudou 1 ajuste.", changed_many: "Você mudou {n} ajustes.",
+    discard: "Descartar", save_apply: "Salvar e aplicar",
+    pending_banner: "Alguns ajustes salvos ainda não estão valendo.", apply_now: "Aplicar agora",
+    problems: "Alguns valores do arquivo de ajustes foram ignorados:",
+    applying: "Aplicando ajustes", applying_text: "O AirMouse está reiniciando. Leva alguns segundos.",
+    apply_slow: "Está demorando", apply_slow_text: "Se o ícone do AirMouse sumiu do relógio, abra-o de novo pelo menu Iniciar.",
+    applied: "Ajustes aplicados", setup_finished: "Pronto! Os ajustes ficam aqui.",
+    startup_on: "Vai iniciar com o Windows", startup_off: "Não vai mais iniciar com o Windows",
+    error_save: "Não deu para salvar: {e}",
+  },
+  en: {
+    nav_setup: "Get started", nav_settings: "Settings",
+    mode_disarmed: "Off", mode_move: "Move", mode_scroll: "Scroll", mode_shortcuts: "Shortcuts",
+    mode_media: "Media", mode_windows: "Windows", mode_classic: "Classic", mode_paused: "Paused",
+    hint_windows: "✊ then 🖐️",
+    pose_none: "", pose_fist: "✊ fist", pose_one: "☝️ 1 finger", pose_two: "✌️ 2 fingers", pose_three: "3 fingers",
+    pose_four: "4 fingers", pose_five: "🖐️ open hand", pose_ok: "👌 ok", pose_pinch: "🤏 pinch",
+    no_hand: "no hand",
+    pend_choose: "pick a mode", pend_disarm: "turning off…", pend_look: "look at the screen",
+    pend_away: "you looked away", pend_attention: "switching the look check…",
+    pend_start: "starting {mode}…",
+    support_seen: "other hand", look_on: "looking at the screen", look_off: "looking away ({angle}°)",
+    look_noface: "no face found", fps: "{fps} frames/s",
+    cam_wait_title: "Waiting for the camera", cam_wait_text: "The picture shows up here in a moment.",
+    cam_error_title: "The camera didn't open", cam_error_text: "Pick another camera and save.",
+    paused_title: "Gestures paused", paused_text: "Resume from the AirMouse icon next to the clock.",
+    lost_title: "Lost contact with AirMouse", lost_text: "Was it closed? Open it again from the Start menu.",
+    classic_note: "Classic mode: always on. Your right hand moves the cursor and clicks with pinches.",
+    step_camera: "Camera", step_use: "How it works", step_practice: "Practice", step_done: "Done",
+    s1_title: "Which camera sees you?", s1_lead: "Pick the picture you're in. You can change it later in Settings.",
+    s2_title: "How should AirMouse work?", s2_lead: "You can change all of this later.",
+    opt_modal: "Modes", opt_modal_desc: "Starts off. Hold 1 to 5 fingers still to pick what to do, close your hand to pause. A resting hand does nothing, good for reclining.",
+    opt_classic: "Classic", opt_classic_desc: "Always on, with the project's original gestures. Any hand movement moves the cursor.",
+    recommended: "recommended",
+    s3_title: "Let's try it with your hand", s3_lead: "Follow the steps while watching the picture. Each one turns green when AirMouse recognises it.",
+    s4_title: "All set", s4_lead: "AirMouse lives in the icon next to the clock. Double-click it to come back to these settings.",
+    back: "Back", next: "Continue", finish: "Finish", skip_setup: "Skip to settings", skip_practice: "Skip practice",
+    p_hand: "Show your {hand} hand to the camera", p_hand_d: "It shows up drawn on the picture.",
+    p_on: "Turn on: raise just your index finger ☝️ and hold still", p_on_d: "Hold for a moment until “Move” shows up.",
+    p_click: "Click: touch your thumb to your index finger and let go", p_click_d: "Move your hand to steer the cursor; the pinch clicks.",
+    p_pause: "Pause: close your hand briefly ✊", p_pause_d: "Open it again to carry on where you were.",
+    p_off: "Turn off: keep your hand closed", p_off_d: "After a second it says “Off”.",
+    p_move: "Move your hand slowly", p_move_d: "The cursor follows it.",
+    p_tip: "Other modes, starting from off: 2 fingers ✌️ scroll, 3 open shortcuts, 4 control media. For windows, close your hand and then open it 🖐️.",
+    gaze_hint: "Look at the screen: with the look check on, AirMouse ignores your hand while you look elsewhere.",
+    hand_right: "right", hand_left: "left",
+    sec_camera: "Camera", sec_use: "How it works", sec_cursor: "Cursor and clicks", sec_timing: "Gesture timing",
+    sec_look: "Looking at the screen", sec_feedback: "Feedback", sec_system: "System",
+    sec_look_p: "Uses your face on camera to tell whether you're looking at the screen. Glance at your phone and AirMouse ignores your hand.",
+    INTERACTION_MODE: "How it works", DOMINANT_HAND: "Mouse hand",
+    LEFT_HAND_ENABLED: "Shortcuts with the other hand", LEFT_HAND_ENABLED_h: "Alt+Tab, back and forward, desktop and more.",
+    MODES_ENABLED: "Available modes", MODES_ENABLED_h: "Untick the ones you don't use: fewer accidental starts.",
+    POINTER_SPEED: "Cursor speed", CURSOR_MAPPING: "Movement",
+    CURSOR_MAPPING_h: "Trackpad: the cursor moves as your hand moves. Position: each point of the camera is a point on the screen.",
+    opt_relative: "Trackpad", opt_absolute: "Position",
+    PINCH_INDEX_ENTER_RATIO: "Pinch to click", PINCH_INDEX_ENTER_RATIO_h: "How close your thumb must get to your index finger to click.",
+    end_firm: "touch", end_easy: "near",
+    ARM_HOLD_S: "Hold fingers to turn on", DISARM_HOLD_S: "Hold a fist to turn off",
+    DISARM_HOLD_S_h: "A shorter fist only pauses.",
+    SCROLL_TICKS_PER_HAND_LENGTH: "Scroll per gesture", SCROLL_TICKS_PER_HAND_LENGTH_h: "How far the page scrolls for each quick hand movement in Scroll mode.",
+    ATTENTION_GATE: "Check where I look", opt_always: "Always", opt_start: "Only to turn on", opt_off: "Never",
+    ATTENTION_GATE_h: "Always: a mode pauses while you look away. Only to turn on: it only matters for starting.",
+    ATTENTION_MAX_ANGLE: "How far I can turn my head",
+    HUD_ENABLED: "Show the mode on screen", HUD_POSITION: "Where",
+    opt_bottom_right: "Bottom right", opt_bottom_left: "Bottom left", opt_top_right: "Top right", opt_top_left: "Top left",
+    SOUNDS_ENABLED: "Sounds when turning on, switching and off",
+    opt_right: "Right", opt_left: "Left",
+    startup: "Start with Windows", startup_h: "AirMouse opens by itself when you sign in.",
+    startup_na: "Only available on Windows.",
+    redo: "Get started guide", redo_h: "Camera, how it works and the hand practice.", redo_btn: "Run again",
+    change_camera: "Change camera", file: "Settings file",
+    reset: "reset", seconds: "{v} s", degrees: "{v}°", lines: "{v} lines",
+    finding_cams: "Looking for cameras… this takes a few seconds.", find_again: "Look again",
+    no_cams: "No camera found. Plug one in and look again.",
+    camera_n: "Camera {n}", in_use: "in use", selected: "selected", no_image: "no picture",
+    changed_one: "You changed 1 setting.", changed_many: "You changed {n} settings.",
+    discard: "Discard", save_apply: "Save and apply",
+    pending_banner: "Some saved settings aren't in effect yet.", apply_now: "Apply now",
+    problems: "Some values in the settings file were ignored:",
+    applying: "Applying settings", applying_text: "AirMouse is restarting. This takes a few seconds.",
+    apply_slow: "This is taking a while", apply_slow_text: "If the AirMouse icon left the clock area, open it again from the Start menu.",
+    applied: "Settings applied", setup_finished: "Done! Your settings live here.",
+    startup_on: "Will start with Windows", startup_off: "Won't start with Windows anymore",
+    error_save: "Couldn't save: {e}",
+  },
+};
+
+const MODES = ["move", "scroll", "shortcuts", "media", "windows"];
+const $ = (id) => document.getElementById(id);
+const S = {
+  lang: pickLang(), state: null, draft: null, status: null, cameras: null, camsLoading: false,
+  view: "setup", step: 1, section: null, restarting: false, lost: 0,
+  practice: { done: [], base: null, handSince: null },
+};
+
+function pickLang() {
+  try { const saved = localStorage.getItem("airmouse.lang"); if (saved === "pt" || saved === "en") return saved; } catch (e) {}
+  return (navigator.language || "pt").toLowerCase().startsWith("pt") ? "pt" : "en";
+}
+function t(key, vars) {
+  let s = WORDS[S.lang][key];
+  if (s === undefined) s = WORDS.en[key] ?? key;
+  if (vars) for (const [k, v] of Object.entries(vars)) s = s.replaceAll("{" + k + "}", v);
+  return s;
+}
+function num(v, digits = 2) {
+  return new Intl.NumberFormat(S.lang === "pt" ? "pt-BR" : "en", { maximumFractionDigits: digits }).format(v);
+}
+function el(tag, attrs = {}, ...kids) {
+  const node = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (v === undefined || v === null || v === false) continue;
+    if (k === "class") node.className = v;
+    else if (k === "text") node.textContent = v;
+    else if (k.startsWith("on")) node.addEventListener(k.slice(2), v);
+    else node.setAttribute(k, v === true ? "" : v);
+  }
+  for (const kid of kids.flat()) if (kid !== null && kid !== undefined && kid !== false) node.append(kid);
+  return node;
+}
+const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+const clone = (v) => JSON.parse(JSON.stringify(v));
+
+// ── Server ─────────────────────────────────────────────────────────────────
+async function api(path, body) {
+  const opts = { cache: "no-store", headers: { "X-AirMouse-Token": TOKEN } };
+  if (body !== undefined) {
+    opts.method = "POST";
+    opts.headers["Content-Type"] = "application/json";
+    opts.body = JSON.stringify(body);
+  }
+  const res = await fetch(path, opts);
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const err = new Error(data.error || (data.errors ? Object.entries(data.errors).map(([k, v]) => k + ": " + v).join("; ") : res.status));
+    err.data = data;
+    throw err;
+  }
+  return data;
+}
+
+async function loadState() {
+  S.state = await api("/api/state");
+  S.draft = clone(S.state.values);
+}
+
+// ── Routing ────────────────────────────────────────────────────────────────
+function readHash() {
+  const [view, sub] = location.hash.replace(/^#/, "").split("/");
+  if (view === "setup") { S.view = "setup"; S.step = Math.min(4, Math.max(1, parseInt(sub, 10) || 1)); }
+  else if (view === "settings") { S.view = "settings"; S.section = sub || null; }
+  else S.view = S.state && S.state.setup_done ? "settings" : "setup";
+}
+function go(hash) {
+  if (location.hash === hash) { readHash(); render(); }
+  else location.hash = hash;
+}
+window.addEventListener("hashchange", () => { readHash(); render(); });
+
+// ── Static text and language ───────────────────────────────────────────────
+function applyWords() {
+  document.documentElement.lang = S.lang === "pt" ? "pt-BR" : "en";
+  document.querySelectorAll("[data-t]").forEach((n) => { n.textContent = t(n.dataset.t); });
+  document.querySelectorAll(".lang button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.lang === S.lang)));
+  document.querySelectorAll(".views a").forEach((a) => {
+    if (a.dataset.view === S.view) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current");
+  });
+  $("classicNote").textContent = t("classic_note");
+  renderFingers();
+}
+document.querySelectorAll(".lang button").forEach((b) => b.addEventListener("click", () => {
+  S.lang = b.dataset.lang;
+  try { localStorage.setItem("airmouse.lang", S.lang); } catch (e) {}
+  render();
+}));
+
+// ── The mirror column (updated on every status poll) ───────────────────────
+function renderFingers() {
+  const list = $("fingers");
+  list.replaceChildren(...MODES.map((m, i) => el("li", { "data-mode": m },
+    el("span", { class: "num", text: String(i + 1) }),
+    el("span", { class: "lbl", text: t("mode_" + m) }),
+    el("span", { class: "hint", text: m === "windows" ? t("hint_windows") : "" }),
+    el("span", { class: "bar" }, el("i")),
+  )));
+  updateMirror();
+}
+
+function modeColor(key) {
+  if (MODES.includes(key)) return `var(--${key})`;
+  return key === "classic" ? "var(--move)" : "var(--off)";
+}
+
+function updateMirror() {
+  const st = S.status;
+  const running = S.state ? S.state.running : {};
+  const modal = (st ? st.interaction_mode : running.INTERACTION_MODE) === "modal";
+  const enabled = (S.draft && S.draft.MODES_ENABLED) || MODES;
+  $("fingers").hidden = !modal;
+  $("classicNote").hidden = modal || !st;
+
+  let key = "disarmed";
+  if (st) key = st.user_paused || st.paused ? "paused" : st.mode;
+  document.documentElement.style.setProperty("--ring", modeColor(key));
+
+  // Picture or an explanation
+  const img = $("preview");
+  let title = null, text = "";
+  if (S.lost > 3) { title = t("lost_title"); text = t("lost_text"); }
+  else if (st && st.camera_error) { title = t("cam_error_title"); text = t("cam_error_text"); }
+  else if (st && st.user_paused) { title = t("paused_title"); text = t("paused_text"); }
+  else if (!st || !st.camera) { title = t("cam_wait_title"); text = t("cam_wait_text"); }
+  $("mirrorEmpty").hidden = title === null;
+  img.hidden = title !== null;
+  $("mirrorTitle").textContent = title || "";
+  $("mirrorText").textContent = text;
+  if (title === null && !img.getAttribute("src")) startPreview();
+
+  // Readout
+  $("modeName").textContent = st ? t("mode_" + key) : "";
+  let pose = "";
+  if (st) pose = !st.hand ? t("no_hand") : st.pinch ? t("pose_pinch") : st.pose ? t("pose_" + st.pose) : "";
+  $("pose").textContent = pose;
+  let pending = "";
+  if (st && st.pending) {
+    pending = MODES.includes(st.pending) ? t("pend_start", { mode: t("mode_" + st.pending) }) : t("pend_" + st.pending);
+  }
+  $("pending").textContent = pending;
+  const chip = $("support");
+  chip.hidden = !(st && (st.support || st.support_hand));
+  chip.textContent = st ? (st.support || t("support_seen")) : "";
+  $("fps").textContent = st && st.camera && st.fps ? t("fps", { fps: Math.round(st.fps) }) : "";
+
+  const look = $("look");
+  look.hidden = !(st && st.look && st.camera && !st.user_paused);
+  if (st && st.look) {
+    const away = !st.look.face || !st.look.looking;
+    look.className = "look" + (away ? " away" : "");
+    look.textContent = !st.look.face ? t("look_noface") : st.look.looking ? t("look_on") : t("look_off", { angle: st.look.angle });
+  }
+
+  // Finger strip
+  $("fingers").querySelectorAll("li").forEach((li) => {
+    const m = li.dataset.mode;
+    li.classList.toggle("on", !!st && st.mode === m && !st.paused);
+    li.classList.toggle("off-list", !enabled.includes(m));
+    const bar = li.querySelector(".bar i");
+    bar.style.width = st && st.pending === m ? Math.round(st.progress * 100) + "%" : st && st.mode === m && !st.paused ? "100%" : "0";
+  });
+  const brandRing = document.querySelector(".brand .ring");
+  if (brandRing) brandRing.style.stroke = modeColor(key);
+}
+
+function startPreview() {
+  const img = $("preview");
+  img.src = "/api/preview?t=" + encodeURIComponent(TOKEN) + "&n=" + Date.now();
+}
+$("preview").addEventListener("error", () => {
+  $("preview").removeAttribute("src");
+  setTimeout(() => updateMirror(), 2000);
+});
+
+let polling = false;
+async function poll() {
+  if (polling || S.restarting) return;
+  polling = true;
+  try {
+    S.status = await api("/api/status");
+    S.lost = 0;
+    if (S.state && S.status.boot !== S.state.boot && !S.restarting) {
+      await loadState(); // AirMouse was restarted from somewhere else
+      render();
+    }
+  } catch (e) {
+    S.lost += 1;
+  } finally {
+    polling = false;
+  }
+  updateMirror();
+  if (S.view === "setup" && S.step === 3) updatePractice();
+}
+
+// ── Panel ──────────────────────────────────────────────────────────────────
+function render() {
+  // Re-rendering replaces the controls: keep keyboard focus on the same one
+  const active = document.activeElement;
+  const label = active && active !== document.body ? active.getAttribute("aria-label") : null;
+  applyWords();
+  const panel = $("panel");
+  panel.replaceChildren();
+  if (!S.state) return;
+  if (S.view === "setup") renderSetup(panel); else renderSettings(panel);
+  updateSaveBar();
+  if (label) {
+    const again = panel.querySelector(`[aria-label="${CSS.escape(label)}"]`);
+    if (again) again.focus({ preventScroll: true });
+  }
+  if (S.view === "settings" && S.section) {
+    const target = document.getElementById("sec-" + S.section);
+    S.section = null; // scroll there once, not on every change
+    if (target) target.scrollIntoView({ block: "start" });
+  }
+}
+
+// Wizard ───────────────────────────────────────────────────────────────────
+const STEP_KEYS = ["step_camera", "step_use", "step_practice", "step_done"];
+
+function renderSetup(panel) {
+  panel.append(el("ol", { class: "steps" }, STEP_KEYS.map((k, i) =>
+    el("li", { class: i + 1 < S.step ? "done" : "", "aria-current": i + 1 === S.step ? "step" : false, text: t(k) }))));
+  ({ 1: setupCamera, 2: setupUse, 3: setupPractice, 4: setupDone })[S.step](panel);
+}
+
+function wizardActions(panel, { back, next, nextLabel = t("next"), extra }) {
+  panel.append(el("div", { class: "actions" },
+    back ? el("button", { type: "button", class: "btn quiet", onclick: back, text: t("back") }) : null,
+    el("span", { class: "spacer" }),
+    extra || null,
+    el("button", { type: "button", class: "btn", onclick: next, text: nextLabel }),
+  ));
+}
+
+function setupCamera(panel) {
+  panel.append(el("h1", { text: t("s1_title") }), el("p", { class: "lead", text: t("s1_lead") }));
+  panel.append(cameraPicker(true));
+  wizardActions(panel, {
+    next: () => saveThen(["CAMERA_INDEX"], "#setup/2"),
+    extra: el("button", { type: "button", class: "link", onclick: skipSetup, text: t("skip_setup") }),
+  });
+}
+
+function setupUse(panel) {
+  panel.append(el("h1", { text: t("s2_title") }), el("p", { class: "lead", text: t("s2_lead") }));
+  const d = S.draft;
+  const choice = (value, title, desc, rec) => el("label", { class: "choice" },
+    el("input", { type: "radio", name: "imode", value, checked: d.INTERACTION_MODE === value,
+      onchange: () => { d.INTERACTION_MODE = value; render(); } }),
+    el("b", {}, title, rec ? el("span", { class: "rec", text: t("recommended") }) : null),
+    el("small", { text: desc }));
+  panel.append(el("div", { class: "choices", role: "radiogroup", "aria-label": t("INTERACTION_MODE") },
+    choice("modal", t("opt_modal"), t("opt_modal_desc"), true),
+    choice("classic", t("opt_classic"), t("opt_classic_desc"), false)));
+
+  const rows = el("div", { style: "margin-top:20px" });
+  rows.append(rowSegmented("DOMINANT_HAND", [["right", "opt_right"], ["left", "opt_left"]]));
+  rows.append(rowSwitch("LEFT_HAND_ENABLED"));
+  if (d.INTERACTION_MODE === "modal") {
+    rows.append(rowRaw(t("ATTENTION_GATE"), t("sec_look_p"), switchControl(d.ATTENTION_GATE !== "off", (on) => {
+      d.ATTENTION_GATE = on ? "always" : "off"; updateSaveBar();
+    }, t("ATTENTION_GATE"))));
+  }
+  panel.append(rows);
+  wizardActions(panel, {
+    back: () => go("#setup/1"),
+    next: () => saveThen(["INTERACTION_MODE", "DOMINANT_HAND", "LEFT_HAND_ENABLED", "ATTENTION_GATE"], "#setup/3"),
+  });
+}
+
+function practiceSteps() {
+  const hand = t("hand_" + (S.state.running.DOMINANT_HAND || "right"));
+  if (S.state.running.INTERACTION_MODE === "modal") {
+    return [["p_hand", "p_hand_d"], ["p_on", "p_on_d"], ["p_click", "p_click_d"], ["p_pause", "p_pause_d"], ["p_off", "p_off_d"]]
+      .map(([a, b]) => [t(a, { hand }), t(b)]);
+  }
+  return [["p_hand", "p_hand_d"], ["p_move", "p_move_d"], ["p_click", "p_click_d"]].map(([a, b]) => [t(a, { hand }), t(b)]);
+}
+
+function setupPractice(panel) {
+  const steps = practiceSteps();
+  if (S.practice.done.length !== steps.length) S.practice = { done: steps.map(() => false), base: null, handSince: null };
+  panel.append(el("h1", { text: t("s3_title") }), el("p", { class: "lead", text: t("s3_lead") }));
+  panel.append(el("ol", { class: "practice", id: "practice" }, steps.map(([title, desc]) =>
+    el("li", {}, el("b", { text: title }), el("small", { text: desc })))));
+  panel.append(el("p", { class: "gaze", id: "gaze", hidden: true, text: t("gaze_hint") }));
+  if (S.state.running.INTERACTION_MODE === "modal") panel.append(el("p", { class: "tip", text: t("p_tip") }));
+  // Until every step is green the way forward is "skip"; then it becomes "continue"
+  panel.append(el("div", { class: "actions" },
+    el("button", { type: "button", class: "btn quiet", onclick: () => go("#setup/2"), text: t("back") }),
+    el("span", { class: "spacer" }),
+    el("button", { type: "button", class: "link", id: "skipPractice", onclick: () => go("#setup/4"), text: t("skip_practice") }),
+    el("button", { type: "button", class: "btn", id: "practiceNext", onclick: () => go("#setup/4"), text: t("next"), hidden: true }),
+  ));
+  updatePractice();
+}
+
+function updatePractice() {
+  const list = $("practice");
+  if (!list || !S.status) return;
+  const st = S.status, p = S.practice, modal = S.state.running.INTERACTION_MODE === "modal";
+  const clicked = () => {
+    if (p.base === null) p.base = st.clicks; // counted from when this step starts
+    return st.clicks > p.base;
+  };
+  const handHeld = () => {
+    if (!st.hand) { p.handSince = null; return false; }
+    p.handSince = p.handSince ?? performance.now();
+    return performance.now() - p.handSince > 1500;
+  };
+  const checks = modal
+    ? [() => st.hand, () => st.mode !== "disarmed" && !st.paused, clicked, () => st.paused, () => st.mode === "disarmed"]
+    : [() => st.hand, handHeld, clicked];
+  const current = p.done.indexOf(false);
+  if (current >= 0 && checks[current]()) p.done[current] = true;
+  const next = p.done.indexOf(false);
+  list.querySelectorAll("li").forEach((li, i) => {
+    li.className = p.done[i] ? "done" : i === next ? "now" : "";
+  });
+  const gaze = $("gaze");
+  if (gaze) gaze.hidden = !(st.look && (!st.look.face || !st.look.looking));
+  const skip = $("skipPractice"), forward = $("practiceNext");
+  if (skip) skip.hidden = next === -1;
+  if (forward) forward.hidden = next !== -1;
+}
+
+function setupDone(panel) {
+  panel.append(el("h1", { text: t("s4_title") }), el("p", { class: "lead", text: t("s4_lead") }));
+  panel.append(startupRow());
+  wizardActions(panel, { back: () => go("#setup/3"), next: finishSetup, nextLabel: t("finish") });
+}
+
+async function finishSetup() {
+  try { S.state = await api("/api/setup-done", {}); } catch (e) { toast(t("error_save", { e: e.message })); return; }
+  S.draft = clone(S.state.values);
+  go("#settings");
+  toast(t("setup_finished"));
+}
+async function skipSetup() {
+  try { S.state = await api("/api/setup-done", {}); S.draft = clone(S.state.values); } catch (e) {}
+  go("#settings");
+}
+
+// Save the given keys if they changed; restart when the running AirMouse uses other values.
+async function saveThen(keys, nextHash) {
+  const changes = {};
+  for (const k of keys) if (k in S.draft && !same(S.draft[k], S.state.values[k])) changes[k] = S.draft[k];
+  try {
+    if (Object.keys(changes).length) S.state = await api("/api/settings", { values: changes });
+  } catch (e) { toast(t("error_save", { e: e.message })); return; }
+  const needsRestart = keys.some((k) => k in S.state.values && !same(S.state.values[k], S.state.running[k]));
+  if (needsRestart) await restart(nextHash);
+  else { S.draft = clone(S.state.values); go(nextHash); }
+}
+
+// Settings ─────────────────────────────────────────────────────────────────
+function renderSettings(panel) {
+  const d = S.draft, modal = d.INTERACTION_MODE === "modal";
+  const pendingKeys = Object.keys(S.state.values).filter((k) => !same(S.state.values[k], S.state.running[k]));
+  if (pendingKeys.length) {
+    panel.append(el("p", { class: "note warn" }, t("pending_banner"),
+      el("button", { type: "button", class: "link", onclick: () => restart(location.hash || "#settings"), text: t("apply_now") })));
+  }
+  if (S.state.problems && S.state.problems.length) {
+    panel.append(el("div", { class: "note warn" }, el("p", { style: "margin:0 0 6px", text: t("problems") }),
+      ...S.state.problems.map((p) => el("div", { class: "path", text: p }))));
+  }
+  const section = (id, rows, intro) => el("section", { class: "section", id: "sec-" + id, "aria-labelledby": "h-" + id },
+    el("h2", { id: "h-" + id, text: t("sec_" + id) }), intro ? el("p", { text: intro }) : null, rows);
+
+  panel.append(section("camera", [cameraPicker(!!(S.status && S.status.camera_error))]));
+  panel.append(section("use", [
+    rowSegmented("INTERACTION_MODE", [["modal", "opt_modal"], ["classic", "opt_classic"]]),
+    rowSegmented("DOMINANT_HAND", [["right", "opt_right"], ["left", "opt_left"]]),
+    rowSwitch("LEFT_HAND_ENABLED"),
+    modal ? rowModes() : null,
+  ]));
+  panel.append(section("cursor", [
+    rowSlider("POINTER_SPEED", (v) => num(v, 0)),
+    rowSegmented("CURSOR_MAPPING", [["relative", "opt_relative"], ["absolute", "opt_absolute"]]),
+    rowSlider("PINCH_INDEX_ENTER_RATIO", null, ["end_firm", "end_easy"]),
+  ]));
+  if (modal) {
+    panel.append(section("timing", [
+      rowSlider("ARM_HOLD_S", (v) => t("seconds", { v: num(v) })),
+      rowSlider("DISARM_HOLD_S", (v) => t("seconds", { v: num(v, 1) })),
+      rowSlider("SCROLL_TICKS_PER_HAND_LENGTH", (v) => t("lines", { v: num(v, 1) })),
+    ]));
+    panel.append(section("look", [
+      rowSegmented("ATTENTION_GATE", [["always", "opt_always"], ["start", "opt_start"], ["off", "opt_off"]]),
+      d.ATTENTION_GATE !== "off" ? rowSlider("ATTENTION_MAX_ANGLE", (v) => t("degrees", { v: num(v, 0) })) : null,
+    ], t("sec_look_p")));
+    panel.append(section("feedback", [
+      rowSwitch("HUD_ENABLED"),
+      d.HUD_ENABLED ? rowCorners("HUD_POSITION") : null,
+      rowSwitch("SOUNDS_ENABLED"),
+    ]));
+  }
+  panel.append(section("system", [
+    startupRow(),
+    rowRaw(t("redo"), t("redo_h"), el("button", { type: "button", class: "btn quiet", onclick: () => go("#setup/1"), text: t("redo_btn") })),
+    el("div", { class: "row wide" }, el("span", { class: "label", text: t("file") }), el("span", { class: "path", text: S.state.settings_file })),
+  ]));
+}
+
+// Rows ─────────────────────────────────────────────────────────────────────
+function resetLink(key) {
+  const def = S.state.defaults[key];
+  if (def === undefined || same(def, S.draft[key])) return null;
+  return el("button", { type: "button", class: "link reset", text: t("reset"),
+    onclick: () => { S.draft[key] = clone(def); render(); } });
+}
+function rowRaw(label, help, control) {
+  return el("div", { class: "row" },
+    el("span", { class: "label" }, label),
+    control,
+    help ? el("span", { class: "help", text: help }) : null);
+}
+function helpFor(key) { const h = WORDS[S.lang][key + "_h"]; return h || null; }
+
+function rowSegmented(key, options) {
+  const group = el("div", { class: "seg", role: "radiogroup", "aria-label": t(key) },
+    options.map(([value, word]) => el("button", {
+      type: "button", role: "radio", "aria-checked": String(S.draft[key] === value), text: t(word),
+      onclick: () => { S.draft[key] = value; render(); },
+    })));
+  group.addEventListener("keydown", radioKeys);
+  return el("div", { class: "row" }, el("span", { class: "label" }, t(key), resetLink(key)), group,
+    helpFor(key) ? el("span", { class: "help", text: helpFor(key) }) : null);
+}
+function radioKeys(e) {
+  if (!["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(e.key)) return;
+  const buttons = [...e.currentTarget.querySelectorAll("button")];
+  const i = buttons.indexOf(document.activeElement);
+  if (i < 0) return;
+  e.preventDefault();
+  const j = (i + (e.key === "ArrowLeft" || e.key === "ArrowUp" ? -1 : 1) + buttons.length) % buttons.length;
+  buttons[j].click();
+  const again = [...document.querySelectorAll(`[aria-label="${e.currentTarget.getAttribute("aria-label")}"] button`)];
+  if (again[j]) again[j].focus();
+}
+
+function switchControl(checked, onChange, label, disabled) {
+  return el("span", { class: "switch" },
+    el("input", { type: "checkbox", role: "switch", checked, disabled, "aria-label": label,
+      onchange: (e) => onChange(e.target.checked) }),
+    el("span"));
+}
+function rowSwitch(key) {
+  return el("div", { class: "row" },
+    el("span", { class: "label" }, t(key), resetLink(key)),
+    switchControl(!!S.draft[key], (on) => { S.draft[key] = on; render(); }, t(key)),
+    helpFor(key) ? el("span", { class: "help", text: helpFor(key) }) : null);
+}
+function rowSlider(key, format, ends) {
+  const spec = S.state.schema.find((s) => s.key === key);
+  const out = el("output", { text: format ? format(S.draft[key]) : "" });
+  const input = el("input", { type: "range", min: spec.min, max: spec.max, step: spec.step, value: S.draft[key], "aria-label": t(key),
+    oninput: (e) => { S.draft[key] = Number(e.target.value); if (format) out.textContent = format(S.draft[key]); updateSaveBar(); },
+    onchange: () => render() });
+  const control = el("div", { class: "slider" },
+    el("span", { class: "end", text: ends ? t(ends[0]) : "" }), input, ends ? el("span", { class: "end", text: t(ends[1]) }) : out);
+  return el("div", { class: "row" }, el("span", { class: "label" }, t(key), resetLink(key)), control,
+    helpFor(key) ? el("span", { class: "help", text: helpFor(key) }) : null);
+}
+// Where the on-screen mode label sits: a small screen with a button in each corner
+function rowCorners(key) {
+  const corners = ["top-left", "top-right", "bottom-left", "bottom-right"];
+  const screen = el("div", { class: "corners", role: "radiogroup", "aria-label": t(key) }, corners.map((c) =>
+    el("button", { type: "button", role: "radio", class: c, "aria-checked": String(S.draft[key] === c),
+      "aria-label": t("opt_" + c.replace("-", "_")), title: t("opt_" + c.replace("-", "_")),
+      onclick: () => { S.draft[key] = c; render(); } })));
+  screen.addEventListener("keydown", radioKeys);
+  return el("div", { class: "row" },
+    el("span", { class: "label" }, t(key), resetLink(key)),
+    screen,
+    el("span", { class: "help", text: t("opt_" + S.draft[key].replace("-", "_")) }));
+}
+
+function rowModes() {
+  const key = "MODES_ENABLED";
+  const chosen = S.draft[key];
+  const box = el("div", { class: "modes", role: "group", "aria-label": t(key) }, MODES.map((m, i) =>
+    el("label", { style: `--c: var(--${m})` },
+      el("input", { type: "checkbox", checked: chosen.includes(m), "aria-label": t("mode_" + m), onchange: (e) => {
+        const next = MODES.filter((x) => (x === m ? e.target.checked : chosen.includes(x)));
+        if (!next.length) { e.target.checked = true; return; }
+        S.draft[key] = next; render();
+      } }),
+      el("span", { class: "n", text: String(i + 1) }), t("mode_" + m))));
+  const row = el("div", { class: "row wide" }, el("span", { class: "label" }, t(key), resetLink(key)), box,
+    el("span", { class: "help", text: helpFor(key) }));
+  return row;
+}
+
+function startupRow() {
+  const s = S.state.startup;
+  if (!s.available) return rowRaw(t("startup"), t("startup_na"), switchControl(false, () => {}, t("startup"), true));
+  return rowRaw(t("startup"), t("startup_h"), switchControl(s.enabled, async (on) => {
+    try {
+      const res = await api("/api/startup", { enabled: on });
+      S.state.startup = res.startup;
+      toast(t(res.startup.enabled ? "startup_on" : "startup_off"));
+    } catch (e) { toast(t("error_save", { e: e.message })); render(); }
+  }, t("startup")));
+}
+
+// Camera picker ────────────────────────────────────────────────────────────
+function cameraPicker(probe) {
+  const wrap = el("div", { id: "camPicker" });
+  if (probe && !S.cameras && !S.camsLoading) loadCameras(false);
+  fillCameraPicker(wrap);
+  return wrap;
+}
+function fillCameraPicker(wrap) {
+  wrap.replaceChildren();
+  const running = S.state.running.CAMERA_INDEX;
+  const broken = S.status && S.status.camera_error;
+  if (S.cameras && S.cameras.length) {
+    const grid = el("div", { class: "cams", role: "radiogroup", "aria-label": t("sec_camera") });
+    for (const cam of S.cameras) {
+      const selected = S.draft.CAMERA_INDEX === cam.index;
+      const tag = cam.index === running && !broken ? t("in_use") : "";
+      const shot = el("span", { class: "shot", style: cam.thumb ? `background-image:url("${cam.thumb}")` : null },
+        cam.thumb ? null : el("span", { class: "noimg", text: t("no_image") }));
+      grid.append(el("button", { type: "button", class: "cam", role: "radio", "aria-checked": String(selected),
+        onclick: () => { S.draft.CAMERA_INDEX = cam.index; render(); } },
+        shot, el("span", { class: "name" }, t("camera_n", { n: cam.index }), tag ? el("span", { class: "tag", text: tag }) : null)));
+    }
+    wrap.append(grid);
+  }
+  if (!S.cameras && !S.camsLoading) {
+    // Settings: no probing until asked (it briefly opens every camera)
+    wrap.append(el("div", { class: "row" },
+      el("span", { class: "label" }, t("camera_n", { n: S.draft.CAMERA_INDEX }),
+        S.draft.CAMERA_INDEX === running && !broken ? el("span", { class: "tag", text: " " + t("in_use") }) : null),
+      el("button", { type: "button", class: "btn quiet", onclick: () => loadCameras(true), text: t("change_camera") })));
+    return;
+  }
+  const status = S.camsLoading ? t("finding_cams") : !S.cameras.length ? t("no_cams") : "";
+  wrap.append(el("p", { class: "cams-status" }, status ? status + " " : "",
+    S.camsLoading ? null : el("button", { type: "button", class: "link", onclick: () => loadCameras(true), text: t("find_again") })));
+}
+async function loadCameras(refresh) {
+  S.camsLoading = true;
+  const wrap = $("camPicker"); if (wrap) fillCameraPicker(wrap);
+  try { S.cameras = (await api("/api/cameras" + (refresh ? "?refresh=1" : ""))).cameras; }
+  catch (e) { S.cameras = []; }
+  S.camsLoading = false;
+  const again = $("camPicker"); if (again) fillCameraPicker(again);
+}
+
+// Save bar ─────────────────────────────────────────────────────────────────
+function dirtyKeys() {
+  if (!S.state || !S.draft) return [];
+  return Object.keys(S.draft).filter((k) => !same(S.draft[k], S.state.values[k]));
+}
+function updateSaveBar() {
+  const keys = S.view === "settings" ? dirtyKeys() : [];
+  $("saveBar").hidden = !keys.length;
+  $("saveText").textContent = keys.length === 1 ? t("changed_one") : t("changed_many", { n: keys.length });
+}
+$("discardBtn").addEventListener("click", () => { S.draft = clone(S.state.values); render(); });
+$("saveBtn").addEventListener("click", async () => {
+  const changes = {};
+  for (const k of dirtyKeys()) changes[k] = S.draft[k];
+  try { S.state = await api("/api/settings", { values: changes }); }
+  catch (e) { toast(t("error_save", { e: e.message })); return; }
+  await restart(location.hash || "#settings");
+});
+
+// Restart ──────────────────────────────────────────────────────────────────
+async function restart(nextHash) {
+  const before = S.state.boot;
+  S.restarting = true;
+  $("saveBar").hidden = true;
+  $("overlay").hidden = false;
+  $("overlaySpin").hidden = false;
+  $("overlayTitle").textContent = t("applying");
+  $("overlayText").textContent = t("applying_text");
+  $("preview").removeAttribute("src");
+  try { await api("/api/restart", {}); } catch (e) {}
+  const started = Date.now();
+  for (;;) {
+    await new Promise((r) => setTimeout(r, 700));
+    try {
+      const st = await api("/api/status");
+      if (st.boot !== before) { S.status = st; break; }
+    } catch (e) {}
+    if (Date.now() - started > 40000) {
+      $("overlaySpin").hidden = true;
+      $("overlayTitle").textContent = t("apply_slow");
+      $("overlayText").textContent = t("apply_slow_text");
+    }
+  }
+  await loadState();
+  S.cameras = null;
+  S.restarting = false;
+  S.practice = { done: [], base: null, handSince: null };
+  $("overlay").hidden = true;
+  go(nextHash);
+  startPreview();
+  toast(t("applied"));
+}
+
+// Toast ────────────────────────────────────────────────────────────────────
+let toastTimer = null;
+function toast(text) {
+  const node = $("toast");
+  node.textContent = text;
+  node.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => node.classList.remove("show"), 2600);
+}
+
+// ── Start ──────────────────────────────────────────────────────────────────
+(async function main() {
+  applyWords();
+  try { await loadState(); } catch (e) { S.lost = 5; updateMirror(); return; }
+  readHash();
+  render();
+  poll();
+  setInterval(poll, 160);
+})();
+</script>
+</body>
+</html>
