@@ -104,4 +104,12 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           $setup = (Get-ChildItem dist\AirMouse-Setup-*.exe | Select-Object -First 1).FullName
-          gh release create "${{ github.ref_name }}" $setup --title "AirMouse ${{ steps.prepare.outputs.version }}" --generate-notes
+          $tag = "${{ github.ref_name }}"
+          gh release view $tag *> $null
+          if ($LASTEXITCODE -eq 0) {
+            # the release already exists (e.g. created on github.com): just attach the installer
+            gh release upload $tag $setup --clobber
+          } else {
+            gh release create $tag $setup --title "AirMouse ${{ steps.prepare.outputs.version }}" --notes-file packaging/RELEASE_NOTES.md
+          }
+          if ($LASTEXITCODE -ne 0) { exit 1 }
