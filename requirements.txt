@@ -4,3 +4,4 @@ numpy
 screeninfo
 pynput
 psutil
+pystray

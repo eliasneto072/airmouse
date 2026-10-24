@@ -62,7 +62,12 @@ curl.exe -L -o models\hand_landmarker.task https://storage.googleapis.com/mediap
 
 # Launch
 .\.venv\Scripts\python main.py
+
+# Optional: Desktop + Start-menu shortcuts that start AirMouse without a terminal
+.\.venv\Scripts\python tools\create_shortcuts.py
 ```
+
+While running, AirMouse shows an icon next to the clock (its colour follows the current mode). Right-click it to pause gestures, turn the look check on/off, **start AirMouse with Windows**, open your settings or the log, and quit.
 
 > Press **Ctrl+C** to exit. All Windows settings (timer resolution, pointer acceleration, process priority) are automatically restored on shutdown.
 

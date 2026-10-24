@@ -16,6 +16,7 @@ Startup sequence (ORDER MATTERS):
   11. On exit: restore timer resolution, restore pointer precision, release all resources
 
 Exit handling:
+  - "Quit AirMouse" in the tray icon menu -> clean shutdown
   - Ctrl+C (KeyboardInterrupt) -> clean shutdown
   - Any unhandled exception -> log traceback, then clean shutdown
   - atexit handler as final safety net to ensure pointer precision is restored
@@ -28,11 +29,20 @@ import os
 import time
 import traceback
 
+import sys
+
+# Relative paths (models/, the log file) must work however AirMouse is started:
+# a shortcut, "Start with Windows" or a terminal in another folder.
+os.chdir(os.path.dirname(os.path.abspath(__file__)))
+
 import psutil
 
 import cv2
 
-from config import PROCESS_PRIORITY, TIMER_RESOLUTION_MS, DEBUG_GESTURES, LOG_FILE
+from config import PROCESS_PRIORITY, TIMER_RESOLUTION_MS, DEBUG_GESTURES, LOG_FILE, TRAY_ENABLED
+from core import single_instance
+from core.app_control import AppControl
+from core.tracker import HandsResult
 from core.camera import AsyncCamera
 from core.tracker import HandTracker
 from core.gestures import build_orchestrator
@@ -45,10 +55,12 @@ if DEBUG_GESTURES:
 # ── Logging ───────────────────────────────────────────────────────────────────
 
 _formatter = logging.Formatter("%(asctime)s [%(levelname)s] %(name)s: %(message)s", datefmt="%H:%M:%S")
-_console = logging.StreamHandler()
-_console.setLevel(logging.INFO)
-_console.setFormatter(_formatter)
-_handlers: list[logging.Handler] = [_console]
+_handlers: list[logging.Handler] = []
+if sys.stderr is not None:  # pythonw.exe (shortcut / start with Windows) has no console
+    _console = logging.StreamHandler()
+    _console.setLevel(logging.INFO)
+    _console.setFormatter(_formatter)
+    _handlers.append(_console)
 if LOG_FILE:
     _file = logging.FileHandler(LOG_FILE, mode="w", encoding="utf-8")
     _file.setLevel(logging.DEBUG)
@@ -150,6 +162,10 @@ def _restore_windows_settings(original: dict) -> None:
 # ── Main Loop ─────────────────────────────────────────────────────────────────
 
 def run() -> None:
+    if not single_instance.acquire():
+        single_instance.show_already_running()
+        return
+
     original_settings: dict = {}
 
     def _emergency_restore():
@@ -173,15 +189,39 @@ def run() -> None:
 
     frame_count = 0
     fps_clock = time.perf_counter()
+    tray_clock = 0.0
     none_count = 0
+    control = AppControl()
+    tray = None
 
     with AsyncCamera() as camera, HandTracker() as tracker:
         processor = build_orchestrator(actuator, desktop, trackpad)
+        control.processor = processor
 
-        logger.info("Running. Press Ctrl+C to exit.")
+        if TRAY_ENABLED:
+            from core.tray import Tray
+
+            tray = Tray(control, LOG_FILE)
+            if tray.start():
+                tray.notify("AirMouse is running — right-click the icon for options.")
+            else:
+                tray = None
+
+        logger.info("Running. Quit from the tray icon (or Ctrl+C in a terminal).")
 
         try:
-            while True:
+            while not control.stop.is_set():
+                if tray is not None and time.perf_counter() - tray_clock > 0.3:
+                    tray_clock = time.perf_counter()
+                    tray.refresh()
+
+                if control.paused:
+                    # Gestures paused from the tray: no tracking (saves CPU); an empty
+                    # frame lets the pipeline release keys and turn itself off.
+                    processor.process(HandsResult(), None)
+                    time.sleep(0.03)
+                    continue
+
                 frame = camera.read()
 
                 if frame is None:
@@ -218,6 +258,8 @@ def run() -> None:
         except Exception:
             logger.error("Unhandled exception:\n%s", traceback.format_exc())
         finally:
+            if tray is not None:
+                tray.stop()
             if DEBUG_GESTURES:
                 cv2.destroyAllWindows()
             # Never leave a mouse button or key pressed on exit

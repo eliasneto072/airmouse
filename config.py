@@ -234,6 +234,9 @@ FLIP_HANDEDNESS = False
 # gesture state, and pinch distances. Press Q in the window to quit.
 DEBUG_GESTURES = False
 
+# ── Tray icon ─────────────────────────────────────────────────────────────────
+TRAY_ENABLED = True               # icon next to the clock: pause, look check, start with Windows, quit
+
 # ── Log file ──────────────────────────────────────────────────────────────────
 # Everything printed in the terminal plus periodic DEBUG state lines go here
 # (overwritten on each start, git-ignored). Attach it when reporting a problem.

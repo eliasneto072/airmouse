@@ -119,6 +119,14 @@ class ModalOrchestrator:
         return self._attention_on
 
     @property
+    def attention_available(self) -> bool:
+        return self._attention is not None
+
+    def toggle_attention(self) -> None:
+        """Same as holding 👌 while OFF (used by the tray menu)."""
+        self._on_event("toggle_attention", self._manager.mode)
+
+    @property
     def right_state(self) -> str:
         """Short state text for the debug overlay."""
         status = self._manager.status
