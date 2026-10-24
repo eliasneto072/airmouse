@@ -14,9 +14,9 @@ is started with the override (holding the start gesture ATTENTION_OVERRIDE_S).
 
 ``facing`` is the instant decision (used to start modes); ``looking`` is
 debounced (turns False only after ATTENTION_AWAY_S facing away) and is used to
-pause an active mode. When no face is found — typically because the user is
-too far from the camera — gestures count (ATTENTION_NO_FACE_ALLOWS): the gate
-only blocks when it can see the user looking elsewhere.
+pause an active mode. When no face is found the user counts as not looking
+(strict default); ATTENTION_NO_FACE_ALLOWS = True makes gestures count
+instead, so the gate only blocks when it sees the user looking elsewhere.
 """
 
 from __future__ import annotations

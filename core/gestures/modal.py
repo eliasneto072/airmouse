@@ -11,6 +11,7 @@ from typing import Callable
 from config import (
     ATTENTION_GATE,
     ATTENTION_MAX_ANGLE,
+    ATTENTION_NO_FACE_ALLOWS,
     DOMINANT_HAND,
     LEFT_HAND_ENABLED,
     MODE_START_NEEDS_FIST,
@@ -76,6 +77,9 @@ class ModalOrchestrator:
         self._last_attention: tuple[bool, bool] | None = None  # (face, looking), for logging changes
         self._attention_text = ""
         self._last_snapshot = 0.0
+        # Latest classified dominant hand and face-tracking result (the settings page reads them)
+        self.last_hand = None
+        self.last_attention = None
         self._classifier = PoseClassifier()
         self._support_classifier = PoseClassifier()
         self._support = SupportHand(actuator) if support_hand else None
@@ -142,9 +146,11 @@ class ModalOrchestrator:
     def process(self, hands: HandsResult, frame=None) -> None:
         now = self._clock()
         facing = looking = True
+        self.last_attention = None
         if self._attention is not None and self._attention_on:
             mode_on = self._manager.mode != Mode.DISARMED and not self._manager.paused
             state = self._attention.process(frame, now, adapt=mode_on)
+            self.last_attention = state
             facing = state.facing
             looking = state.looking if self._attention_gate == "always" else True
             self._log_attention(state)
@@ -159,6 +165,7 @@ class ModalOrchestrator:
             hand = None
         else:
             hand = self._classifier.classify(dominant_lm)
+        self.last_hand = hand
         self._started = False
         self._manager.process(hand, now, facing=facing, looking=looking)
         if self._started and self._attention_on and self._manager.started_with_override:
@@ -227,7 +234,13 @@ class ModalOrchestrator:
             return
         self._last_attention = key
         if not state.face:
-            logger.info("Look check: no face found — gestures count")
+            if ATTENTION_NO_FACE_ALLOWS:
+                logger.info("Look check: no face found — gestures count")
+            else:
+                logger.info(
+                    "Look check: no face found — counts as NOT looking "
+                    "(face the camera, or hold the OK sign 1.5 s to turn the check off)"
+                )
         elif state.looking:
             logger.info("Look check: looking at the screen (head %.0f° from the screen direction)", state.angle)
         else:
