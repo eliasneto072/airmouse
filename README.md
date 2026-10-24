@@ -45,7 +45,9 @@ Everything runs in a tight async loop. Frame capture never blocks inference. Cur
 
 ## Quick Start
 
-**Easiest (no Python knowledge needed):** on GitHub choose *Code → Download ZIP*, extract it, and double-click **`install.bat`**. It installs Python 3.12 for your user if needed (via winget), creates a private environment, installs the libraries (~300 MB the first time), creates Desktop / Start-menu shortcuts and starts AirMouse, which opens a setup guide in your browser. Running it again is safe.
+**Easiest — the installer:** download `AirMouse-Setup-<version>.exe` from the [Releases page](https://github.com/eliasneto072/airmouse/releases) and run it. No Python needed; it installs for your user only (no administrator prompt), adds AirMouse to the Start menu, and opens the setup guide. Windows may show *"Windows protected your PC"* because the installer isn't code-signed yet: choose *More info → Run anyway*.
+
+**From the source, without Python knowledge:** on GitHub choose *Code → Download ZIP*, extract it, and double-click **`install.bat`**. It installs Python 3.12 for your user if needed (via winget), creates a private environment, installs the libraries (~300 MB the first time), creates Desktop / Start-menu shortcuts and starts AirMouse, which opens a setup guide in your browser. Running it again is safe.
 
 > No webcam? A phone-as-webcam app (e.g. DroidCam or Iriun: app on the phone, client on the PC, same Wi-Fi) shows up as a normal camera — pick it in the guide's first step. 4:3 cameras are supported (AirMouse adds side borders instead of stretching the picture).
 
@@ -418,6 +420,20 @@ airmouse/
 ```
 
 ---
+
+## Building the Installer
+
+`.github/workflows/windows-installer.yml` builds it on GitHub's Windows machines for every push to a `feat/…` / `fix/…` branch (download it from the run's *Artifacts*) and publishes a Release for every `vX.Y.Z` tag (bump `core/version.py` first). The steps also run locally on Windows:
+
+```powershell
+.\.venv\Scripts\pip install pyinstaller
+.\.venv\Scripts\python packaging\prepare.py          # models, icon, version info
+.\.venv\Scripts\pyinstaller packaging\airmouse.spec --noconfirm
+dist\AirMouse\AirMouse.exe --self-test               # log: %LOCALAPPDATA%\AirMouse\airmouse.log
+& "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" /DAppVersion=0.2.0 packaging\airmouse.iss
+```
+
+The installed app keeps its log and downloaded models in `%LOCALAPPDATA%\AirMouse` and its settings in `%APPDATA%\AirMouse\settings.json`.
 
 ## Running the Tests
 

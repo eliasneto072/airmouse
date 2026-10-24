@@ -31,11 +31,11 @@ import urllib.parse
 from pathlib import Path
 from typing import Callable
 
-from core import settings_store
+from core import paths, settings_store
 
 logger = logging.getLogger(__name__)
 
-PAGE_PATH = Path(__file__).with_name("web") / "settings.html"
+PAGE_PATH = paths.resource("core/web/settings.html")
 TOKEN_ENV = "AIRMOUSE_UI_TOKEN"  # passed on to the restarted AirMouse so the open page keeps working
 PORT_ENV = "AIRMOUSE_UI_PORT"
 PREVIEW_FPS = 12

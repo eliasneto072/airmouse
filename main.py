@@ -33,14 +33,21 @@ import webbrowser
 import sys
 
 # Relative paths (models/, the log file) must work however AirMouse is started:
-# a shortcut, "Start with Windows" or a terminal in another folder.
+# a shortcut, "Start with Windows" or a terminal in another folder. From source
+# that is this folder; the installed AirMouse.exe writes to %LOCALAPPDATA%\AirMouse.
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
+from core import paths  # noqa: E402
+
+paths.DATA_DIR.mkdir(parents=True, exist_ok=True)
+os.chdir(paths.DATA_DIR)
 
 import psutil
 
 import cv2
 
 from config import (
+    CAMERA_HEIGHT,
+    CAMERA_WIDTH,
     DEBUG_GESTURES,
     LOG_FILE,
     PROCESS_PRIORITY,
@@ -57,6 +64,7 @@ from core.tracker import HandTracker
 from core.gestures import build_orchestrator
 from core.actuator import MouseActuator
 from core.display import build_virtual_desktop, build_trackpad_zone
+from core.version import __version__
 
 if DEBUG_GESTURES:
     from core.debug_overlay import draw_debug_frame
@@ -171,7 +179,6 @@ def _restore_windows_settings(original: dict) -> None:
 # ── Main Loop ─────────────────────────────────────────────────────────────────
 
 RESTARTED_ENV = "AIRMOUSE_RESTARTED"
-APP_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
 def _start_settings_page(control: AppControl, restarted: bool):
@@ -232,7 +239,7 @@ def _restart(server) -> None:
     single_instance.release()
     flags = 0x00000008 | 0x00000200 if sys.platform == "win32" else 0  # DETACHED_PROCESS | NEW_PROCESS_GROUP
     try:
-        subprocess.Popen(startup.launch_command(), env=env, cwd=APP_DIR, close_fds=True, creationflags=flags)
+        subprocess.Popen(startup.launch_command(), env=env, cwd=str(paths.DATA_DIR), close_fds=True, creationflags=flags)
         logger.info("Restarting AirMouse to apply the new settings")
     except OSError as exc:
         logger.error("Could not restart AirMouse: %s", exc)
@@ -253,7 +260,7 @@ def run() -> None:
 
     atexit.register(_emergency_restore)
 
-    logger.info("=== AI Air Mouse starting ===")
+    logger.info("=== AI Air Mouse %s starting ===", __version__)
     for problem in settings_store.problems:
         logger.warning("Settings file: %s", problem)
     first_run = not settings_store.setup_done()
@@ -275,6 +282,8 @@ def run() -> None:
     none_count = 0
     control = AppControl()
     control.actuator = actuator
+    if single_instance.watch_quit_requests(control.stop.set):  # installer / uninstaller asking us to close
+        logger.debug("Listening for quit requests from the installer")
     tray = None
     processor = None
     server = _start_settings_page(control, restarted)
@@ -387,5 +396,52 @@ def run() -> None:
             _restart(server)
 
 
+def self_test() -> int:
+    """
+    ``AirMouse.exe --self-test``: loads every piece without a camera or a mouse.
+    The installer build runs it, so a library missing from the package fails the
+    build instead of the user's first start. Result in the log; exit code 0 = ok.
+    """
+    import numpy as np
+
+    logger.info("Self-test: AirMouse %s, installed=%s, data in %s", __version__, paths.FROZEN, paths.DATA_DIR)
+    try:
+        # Modules loaded by name at run time (easy for the packager to miss)
+        import pynput.keyboard  # noqa: F401
+        import pynput.mouse  # noqa: F401
+        import pystray  # noqa: F401
+        import tkinter  # noqa: F401
+        import winsound  # noqa: F401
+        from screeninfo.enumerators import windows  # noqa: F401
+
+        from core import preview
+        from core.face_tracker import FaceTracker
+        from core.icon import draw_icon
+        from core.settings_server import PAGE_PATH
+        from core.tray import Tray  # noqa: F401
+
+        assert PAGE_PATH.exists(), f"settings page missing: {PAGE_PATH}"
+        draw_icon()
+        frame = np.zeros((CAMERA_HEIGHT, CAMERA_WIDTH, 3), np.uint8)
+        with HandTracker() as tracker:
+            tracker.process(frame)
+        face = FaceTracker()
+        face.process(frame)
+        face.close()
+        assert preview.render_preview(frame), "preview encoding failed"
+        try:
+            desktop = build_virtual_desktop()
+            logger.info("Self-test: desktop %dx%d", desktop.total_width, desktop.total_height)
+        except Exception as exc:  # build machines may have no monitor
+            logger.warning("Self-test: no monitor information (%s)", exc)
+    except Exception:
+        logger.error("Self-test FAILED:\n%s", traceback.format_exc())
+        return 1
+    logger.info("Self-test passed")
+    return 0
+
+
 if __name__ == "__main__":
+    if "--self-test" in sys.argv:
+        sys.exit(self_test())
     run()

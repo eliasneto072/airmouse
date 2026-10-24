@@ -6,6 +6,8 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
+from core import paths
+
 RUN_KEY = r"Software\Microsoft\Windows\CurrentVersion\Run"
 VALUE_NAME = "AirMouse"
 APP_DIR = Path(__file__).resolve().parents[1]
@@ -17,8 +19,10 @@ def _winreg():
     return winreg
 
 
-def launch_command(app_dir: Path = APP_DIR, python: str = sys.executable) -> str:
-    """pythonw.exe (no console window) from the same environment, running main.py."""
+def launch_command(app_dir: Path = APP_DIR, python: str = sys.executable, frozen: bool = paths.FROZEN) -> str:
+    """The installed AirMouse.exe, or pythonw.exe (no console window) from the same environment running main.py."""
+    if frozen:
+        return f'"{python}"'  # sys.executable is AirMouse.exe itself
     pythonw = Path(python).with_name("pythonw.exe")
     exe = pythonw if pythonw.exists() else Path(python)
     return f'"{exe}" "{app_dir / "main.py"}"'

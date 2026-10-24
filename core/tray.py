@@ -15,15 +15,14 @@ import logging
 import subprocess
 import threading
 import webbrowser
-from pathlib import Path
 
-from core import startup
+from core import paths, startup
 from core.app_control import AppControl
 from core.icon import MODE_COLORS, draw_icon
 
 logger = logging.getLogger(__name__)
 
-APP_DIR = Path(__file__).resolve().parents[1]
+APP_DIR = paths.SOURCE_DIR
 
 CONFIG_TEMPLATE = """\
 # config_local.py — your personal AirMouse settings (git-ignored).
@@ -69,7 +68,7 @@ class Tray:
             pystray.Menu.SEPARATOR,
             item("Settings…", self._open_settings, default=True),
             item("Open log", self._open_log, visible=lambda _: bool(self._log_file)),
-            item("Advanced: edit config_local.py", self._open_config_local),
+            item("Advanced: edit config_local.py", self._open_config_local, visible=lambda _: not paths.FROZEN),
             pystray.Menu.SEPARATOR,
             item("Quit AirMouse", self._quit),
         )
@@ -152,7 +151,7 @@ class Tray:
 
     def _open_log(self) -> None:
         if self._log_file:
-            subprocess.Popen(["notepad.exe", str(APP_DIR / self._log_file)])
+            subprocess.Popen(["notepad.exe", str(paths.data(self._log_file))])
 
     def _quit(self) -> None:
         logger.info("Quit from the tray icon")

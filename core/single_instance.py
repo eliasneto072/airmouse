@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import ctypes
 import sys
+import threading
 import time
 
 _ERROR_ALREADY_EXISTS = 183
@@ -40,6 +41,29 @@ def release() -> None:
     if _handle is not None and sys.platform == "win32":
         ctypes.WinDLL("kernel32").CloseHandle(_handle)
     _handle = None
+
+
+def watch_quit_requests(on_quit, name: str = "Local\\AirMouseQuit") -> bool:
+    """
+    Call ``on_quit()`` (from a background thread) when another program signals the
+    named event — the installer and the uninstaller do, so AirMouse can close
+    cleanly and put the Windows mouse settings back. False outside Windows.
+    """
+    if sys.platform != "win32":
+        return False
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    kernel32.CreateEventW.restype = ctypes.c_void_p
+    kernel32.WaitForSingleObject.argtypes = [ctypes.c_void_p, ctypes.c_uint32]
+    handle = kernel32.CreateEventW(None, True, False, name)  # manual reset, not signalled
+    if not handle:
+        return False
+
+    def wait() -> None:
+        if kernel32.WaitForSingleObject(handle, 0xFFFFFFFF) == 0:  # WAIT_OBJECT_0
+            on_quit()
+
+    threading.Thread(target=wait, daemon=True, name="quit-request").start()
+    return True
 
 
 def show_already_running() -> None:

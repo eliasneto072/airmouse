@@ -22,9 +22,9 @@ from core.attention import Vector, face_direction
 logger = logging.getLogger(__name__)
 
 
-def ensure_model(path: str = FACE_MODEL_PATH, url: str = FACE_MODEL_URL) -> None:
-    """Download the face model on first use (it is git-ignored like the hand model)."""
-    models.ensure_model(path, url, "MediaPipe face (~3.7 MB)")
+def load_face_model(path: str = FACE_MODEL_PATH, url: str = FACE_MODEL_URL) -> bytes:
+    """The face model (bundled, or downloaded on first use — it is git-ignored like the hand model)."""
+    return models.load_model(path, url, "MediaPipe face (~3.7 MB)")
 
 
 class FaceTracker:
@@ -38,9 +38,8 @@ class FaceTracker:
         from mediapipe.tasks import python
         from mediapipe.tasks.python.vision import FaceLandmarker, FaceLandmarkerOptions, RunningMode
 
-        ensure_model(model_path)
         options = FaceLandmarkerOptions(
-            base_options=python.BaseOptions(model_asset_path=model_path),
+            base_options=python.BaseOptions(model_asset_buffer=load_face_model(model_path)),
             running_mode=RunningMode.VIDEO,
             num_faces=1,
             min_face_detection_confidence=0.5,

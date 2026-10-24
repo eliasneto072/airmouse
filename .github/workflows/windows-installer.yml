@@ -1,0 +1,107 @@
+# Builds AirMouse-Setup-<version>.exe on a Windows machine in GitHub's cloud.
+#
+# - every push to a feature branch / pull request: tests + installer, kept as
+#   a downloadable artifact of the run (Actions tab → the run → Artifacts)
+# - a tag vX.Y.Z (must match core/version.py): the same, published as a GitHub
+#   Release, so people download the installer from the Releases page
+name: Windows installer
+
+on:
+  push:
+    branches: ["feat/**", "fix/**"]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write  # publishing a release
+
+concurrency:
+  group: installer-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            requirements-dev.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt -r requirements-dev.txt pyinstaller
+          python -m pip freeze
+
+      - name: Unit tests (on Windows)
+        run: python -m pytest -q
+
+      - name: Models, icon and version
+        id: prepare
+        run: |
+          $version = python packaging/prepare.py
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+          "version=$version" >> $env:GITHUB_OUTPUT
+
+      - name: Package with PyInstaller
+        run: pyinstaller packaging/airmouse.spec --noconfirm --clean
+
+      - name: Self-test the packaged app
+        run: |
+          $log = Join-Path $env:LOCALAPPDATA "AirMouse\airmouse.log"
+          Remove-Item $log -ErrorAction SilentlyContinue
+          $p = Start-Process -FilePath dist\AirMouse\AirMouse.exe -ArgumentList "--self-test" -Wait -PassThru
+          if (Test-Path $log) { Get-Content $log } else { "no log written" }
+          "exit code: $($p.ExitCode)"
+          $size = (Get-ChildItem dist\AirMouse -Recurse | Measure-Object Length -Sum).Sum / 1MB
+          "package size: {0:N0} MB" -f $size
+          if ($p.ExitCode -ne 0) { exit 1 }
+
+      - name: Build the installer (Inno Setup)
+        run: |
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) {
+            choco install innosetup -y --no-progress
+          }
+          & $iscc "/DAppVersion=${{ steps.prepare.outputs.version }}" packaging\airmouse.iss
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+          Get-ChildItem dist\AirMouse-Setup-*.exe | ForEach-Object { "{0}  {1:N0} MB" -f $_.Name, ($_.Length / 1MB) }
+
+      - name: Try the installer silently
+        run: |
+          $setup = (Get-ChildItem dist\AirMouse-Setup-*.exe | Select-Object -First 1).FullName
+          $p = Start-Process -FilePath $setup -ArgumentList "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/LOG=install.log" -Wait -PassThru
+          "installer exit code: $($p.ExitCode)"
+          $exe = Join-Path $env:LOCALAPPDATA "Programs\AirMouse\AirMouse.exe"
+          if (-not (Test-Path $exe)) { Get-Content install.log -Tail 40; exit 1 }
+          $t = Start-Process -FilePath $exe -ArgumentList "--self-test" -Wait -PassThru
+          "installed app self-test exit code: $($t.ExitCode)"
+          if ($t.ExitCode -ne 0) { Get-Content (Join-Path $env:LOCALAPPDATA "AirMouse\airmouse.log"); exit 1 }
+          $uninstall = Join-Path $env:LOCALAPPDATA "Programs\AirMouse\unins000.exe"
+          $u = Start-Process -FilePath $uninstall -ArgumentList "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART" -Wait -PassThru
+          "uninstaller exit code: $($u.ExitCode)"
+
+      - uses: actions/upload-artifact@v6
+        with:
+          name: AirMouse-Setup-${{ steps.prepare.outputs.version }}
+          path: dist/AirMouse-Setup-*.exe
+          if-no-files-found: error
+
+      - name: Publish the release
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $setup = (Get-ChildItem dist\AirMouse-Setup-*.exe | Select-Object -First 1).FullName
+          gh release create "${{ github.ref_name }}" $setup --title "AirMouse ${{ steps.prepare.outputs.version }}" --generate-notes

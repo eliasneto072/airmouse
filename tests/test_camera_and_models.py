@@ -1,6 +1,9 @@
-"""Camera letterboxing and model download — no hardware needed."""
+"""Camera letterboxing, model files and app paths — no hardware needed."""
 
-from core import models
+import importlib
+import sys
+
+from core import models, paths, startup
 from core.camera import letterbox_padding
 
 
@@ -32,3 +35,39 @@ def test_model_is_downloaded_once(tmp_path):
     models.ensure_model(str(target), source.as_uri(), "test")
     assert target.read_bytes() == b"model"  # already there: not downloaded again
     assert not (tmp_path / "models" / "hand.task.part").exists()
+
+
+def test_bundled_model_is_used_when_there_is_no_local_copy(tmp_path, monkeypatch):
+    bundle = tmp_path / "bundle"
+    (bundle / "models").mkdir(parents=True)
+    (bundle / "models" / "hand.task").write_bytes(b"bundled")
+    monkeypatch.setattr(paths, "RESOURCE_DIR", bundle)
+    monkeypatch.chdir(tmp_path)
+    url = (tmp_path / "missing.task").as_uri()  # would fail if a download were tried
+    assert models.load_model("models/hand.task", url, "test") == b"bundled"
+    assert not (tmp_path / "models").exists()  # nothing downloaded or copied
+
+
+def test_source_checkout_paths_point_at_the_repository():
+    assert not paths.FROZEN
+    assert paths.resource("core/web/settings.html").exists()
+    assert paths.DATA_DIR == paths.SOURCE_DIR or "AIRMOUSE_DATA_DIR" in __import__("os").environ
+
+
+def test_installed_app_writes_to_local_appdata(monkeypatch, tmp_path):
+    monkeypatch.setattr(sys, "frozen", True, raising=False)
+    monkeypatch.setattr(sys, "_MEIPASS", str(tmp_path / "_internal"), raising=False)
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path / "Local"))
+    monkeypatch.delenv("AIRMOUSE_DATA_DIR", raising=False)
+    try:
+        frozen = importlib.reload(paths)
+        assert frozen.FROZEN
+        assert frozen.RESOURCE_DIR == tmp_path / "_internal"
+        assert frozen.DATA_DIR == tmp_path / "Local" / "AirMouse"
+    finally:
+        monkeypatch.undo()
+        importlib.reload(paths)
+
+
+def test_installed_app_starts_itself_with_windows():
+    assert startup.launch_command(python=r"C:\Apps\AirMouse\AirMouse.exe", frozen=True) == r'"C:\Apps\AirMouse\AirMouse.exe"'
