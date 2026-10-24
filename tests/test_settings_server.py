@@ -139,7 +139,8 @@ def test_state_lists_values_schema_and_defaults(rig):
     code, body, _ = get(rig, "/api/state")
     state = json.loads(body)
     assert code == 200
-    assert state["values"]["INTERACTION_MODE"] == config.INTERACTION_MODE
+    assert state["values"]["ATTENTION_GATE"] == config.ATTENTION_GATE
+    assert state["interaction_mode"] == "modal" and "INTERACTION_MODE" not in state["values"]
     assert {s["key"] for s in state["schema"]} == set(settings_store.BY_KEY)
     assert state["defaults"]["POINTER_SPEED"] == settings_store.DEFAULTS["POINTER_SPEED"]
     assert state["setup_done"] is False

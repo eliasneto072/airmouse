@@ -75,8 +75,10 @@ class SettingsServer:
         mode_colors: dict | None = None,
         page_path: Path = PAGE_PATH,
         bind_wait_s: float = 0.0,
+        interaction_mode: str = "modal",
     ) -> None:
         self.control = control
+        self.interaction_mode = interaction_mode
         self.running = dict(running)
         self.token = token or secrets.token_urlsafe(18)
         self.boot_id = secrets.token_hex(4)
@@ -150,6 +152,7 @@ class SettingsServer:
         values.update({k: v for k, v in saved.items() if not k.startswith("_")})
         return {
             "boot": self.boot_id,
+            "interaction_mode": self.interaction_mode,
             "values": settings_store.to_json(values),
             "running": settings_store.to_json(self.running),
             "defaults": settings_store.to_json(settings_store.DEFAULTS),
@@ -184,7 +187,7 @@ class SettingsServer:
             "camera": c.latest_frame is not None,
             "camera_error": getattr(c, "camera_error", None),
             "user_paused": bool(c.paused),
-            "interaction_mode": self.running.get("INTERACTION_MODE", "classic"),
+            "interaction_mode": self.interaction_mode,
             "dominant": dominant,
             "support_hand": hand_of(support_side) is not None,
         }

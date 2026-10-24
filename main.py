@@ -197,6 +197,7 @@ def _start_settings_page(control: AppControl, restarted: bool):
         startup=startup,
         mode_colors=MODE_COLORS,
         bind_wait_s=5.0 if restarted else 0.0,
+        interaction_mode=config.INTERACTION_MODE,
     )
     if not server.start():
         return None

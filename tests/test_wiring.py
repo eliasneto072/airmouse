@@ -13,8 +13,14 @@ DESKTOP = VirtualDesktop(total_width=1920, total_height=1080, monitor_count=1)
 TRACKPAD = TrackpadZone(x_min=100, x_max=1180, y_min=100, y_max=620)
 
 
-def test_classic_is_the_default():
-    assert isinstance(build_orchestrator(FakeActuator(), DESKTOP, TRACKPAD), GestureOrchestrator)
+def test_modal_is_the_default():
+    modal = build_orchestrator(FakeActuator(), DESKTOP, TRACKPAD, hud_enabled=False, sounds_enabled=False, attention_gate="off")
+    assert isinstance(modal, ModalOrchestrator)
+    modal.shutdown()
+
+
+def test_classic_is_still_available():
+    assert isinstance(build_orchestrator(FakeActuator(), DESKTOP, TRACKPAD, mode="classic"), GestureOrchestrator)
 
 
 def test_modal_mode():

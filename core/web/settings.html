@@ -248,20 +248,6 @@ button, input { font: inherit; color: inherit; }
 .cam .noimg { display: grid; place-items: center; height: 100%; color: var(--faint); font-size: 14px; }
 .cams-status { color: var(--muted); margin: 12px 0 0; }
 
-/* Big choices (wizard) */
-.choices { display: grid; gap: 12px; }
-.choice {
-  display: grid; grid-template-columns: auto 1fr; gap: 4px 14px;
-  padding: 16px 18px; border-radius: var(--radius-m);
-  background: var(--raised); cursor: pointer;
-  box-shadow: 0 0 0 1px var(--line);
-}
-.choice:has(input:checked) { box-shadow: 0 0 0 2px var(--action); }
-.choice input { grid-row: span 2; margin: 4px 0 0; accent-color: var(--action); width: 18px; height: 18px; }
-.choice b { font: 600 19px/1.3 var(--display); }
-.choice small { color: var(--muted); font-size: 15px; grid-column: 2; }
-.choice .rec { color: var(--muted); font: 400 14px var(--body); margin-left: 8px; }
-
 /* Setting rows */
 .section { padding: 28px 0; border-top: 1px solid var(--line); scroll-margin-top: 16px; }
 .section:first-of-type { border-top: 0; padding-top: 4px; }
@@ -485,12 +471,9 @@ const WORDS = {
     classic_note: "Modo clássico: sempre ligado. A mão direita move o cursor e faz cliques com pinças.",
     step_camera: "Câmera", step_use: "Jeito de usar", step_practice: "Treino", step_done: "Pronto",
     s1_title: "Qual câmera enxerga você?", s1_lead: "Escolha a imagem em que você aparece. Dá para trocar depois em Ajustes.",
-    s2_title: "Como o AirMouse deve funcionar?", s2_lead: "Você pode mudar tudo isso depois.",
-    opt_modal: "Por modos", opt_modal_desc: "Começa desligado. Mostre de 1 a 5 dedos parados para escolher o que fazer, feche a mão para pausar. Mão parada não faz nada, bom para usar reclinado.",
-    opt_classic: "Clássico", opt_classic_desc: "Sempre ligado, com os gestos originais do projeto. Qualquer movimento da mão mexe o cursor.",
-    recommended: "recomendado",
+    s2_title: "Como você vai usar", s2_lead: "O AirMouse começa desligado: mão parada não faz nada. Para ligar, mostre de 1 a 5 dedos parados, cada número é um modo. Feche a mão para pausar e segure fechada para desligar. Dá para mudar tudo isto depois.",
     s3_title: "Vamos testar com a sua mão", s3_lead: "Siga os passos olhando para a imagem. Cada um fica verde quando o AirMouse reconhece.",
-    s4_title: "Tudo pronto", s4_lead: "O AirMouse fica no ícone ao lado do relógio. Clique duas vezes nele para voltar a estes ajustes.",
+    s4_title: "Tudo pronto", s4_lead: "O AirMouse fica no ícone ao lado do relógio (às vezes escondido na setinha ^). Clique nele para voltar a estes ajustes.",
     back: "Voltar", next: "Continuar", finish: "Concluir", skip_setup: "Pular e ir para os ajustes", skip_practice: "Pular treino",
     p_hand: "Mostre a mão {hand} para a câmera", p_hand_d: "Ela aparece desenhada na imagem.",
     p_on: "Ligue: deixe só o indicador levantado ☝️, parado", p_on_d: "Segure um instante até aparecer “Mover”.",
@@ -504,7 +487,7 @@ const WORDS = {
     sec_camera: "Câmera", sec_use: "Jeito de usar", sec_cursor: "Cursor e clique", sec_timing: "Tempo dos gestos",
     sec_look: "Olhar para a tela", sec_feedback: "Avisos", sec_system: "Sistema",
     sec_look_p: "Usa o seu rosto na câmera para saber se você está olhando para a tela. Olhou para o celular, o AirMouse ignora a mão.",
-    INTERACTION_MODE: "Funcionamento", DOMINANT_HAND: "Mão do mouse",
+    DOMINANT_HAND: "Mão do mouse",
     LEFT_HAND_ENABLED: "Atalhos com a outra mão", LEFT_HAND_ENABLED_h: "Alt+Tab, voltar e avançar, área de trabalho e outros atalhos.",
     MODES_ENABLED: "Modos disponíveis", MODES_ENABLED_h: "Desmarque os que você não usa: menos chance de ligar sem querer.",
     POINTER_SPEED: "Velocidade do cursor", CURSOR_MAPPING: "Movimento",
@@ -560,12 +543,9 @@ const WORDS = {
     classic_note: "Classic mode: always on. Your right hand moves the cursor and clicks with pinches.",
     step_camera: "Camera", step_use: "How it works", step_practice: "Practice", step_done: "Done",
     s1_title: "Which camera sees you?", s1_lead: "Pick the picture you're in. You can change it later in Settings.",
-    s2_title: "How should AirMouse work?", s2_lead: "You can change all of this later.",
-    opt_modal: "Modes", opt_modal_desc: "Starts off. Hold 1 to 5 fingers still to pick what to do, close your hand to pause. A resting hand does nothing, good for reclining.",
-    opt_classic: "Classic", opt_classic_desc: "Always on, with the project's original gestures. Any hand movement moves the cursor.",
-    recommended: "recommended",
+    s2_title: "How you'll use it", s2_lead: "AirMouse starts off: a resting hand does nothing. To turn it on, hold 1 to 5 fingers still; each number is a mode. Close your hand to pause and keep it closed to turn off. You can change all of this later.",
     s3_title: "Let's try it with your hand", s3_lead: "Follow the steps while watching the picture. Each one turns green when AirMouse recognises it.",
-    s4_title: "All set", s4_lead: "AirMouse lives in the icon next to the clock. Double-click it to come back to these settings.",
+    s4_title: "All set", s4_lead: "AirMouse lives in the icon next to the clock (sometimes hidden under the ^ arrow). Click it to come back to these settings.",
     back: "Back", next: "Continue", finish: "Finish", skip_setup: "Skip to settings", skip_practice: "Skip practice",
     p_hand: "Show your {hand} hand to the camera", p_hand_d: "It shows up drawn on the picture.",
     p_on: "Turn on: raise just your index finger ☝️ and hold still", p_on_d: "Hold for a moment until “Move” shows up.",
@@ -579,7 +559,7 @@ const WORDS = {
     sec_camera: "Camera", sec_use: "How it works", sec_cursor: "Cursor and clicks", sec_timing: "Gesture timing",
     sec_look: "Looking at the screen", sec_feedback: "Feedback", sec_system: "System",
     sec_look_p: "Uses your face on camera to tell whether you're looking at the screen. Glance at your phone and AirMouse ignores your hand.",
-    INTERACTION_MODE: "How it works", DOMINANT_HAND: "Mouse hand",
+    DOMINANT_HAND: "Mouse hand",
     LEFT_HAND_ENABLED: "Shortcuts with the other hand", LEFT_HAND_ENABLED_h: "Alt+Tab, back and forward, desktop and more.",
     MODES_ENABLED: "Available modes", MODES_ENABLED_h: "Untick the ones you don't use: fewer accidental starts.",
     POINTER_SPEED: "Cursor speed", CURSOR_MAPPING: "Movement",
@@ -725,8 +705,7 @@ function modeColor(key) {
 
 function updateMirror() {
   const st = S.status;
-  const running = S.state ? S.state.running : {};
-  const modal = (st ? st.interaction_mode : running.INTERACTION_MODE) === "modal";
+  const modal = (st ? st.interaction_mode : S.state && S.state.interaction_mode) === "modal";
   const enabled = (S.draft && S.draft.MODES_ENABLED) || MODES;
   $("fingers").hidden = !modal;
   $("classicNote").hidden = modal || !st;
@@ -864,33 +843,22 @@ function setupCamera(panel) {
 function setupUse(panel) {
   panel.append(el("h1", { text: t("s2_title") }), el("p", { class: "lead", text: t("s2_lead") }));
   const d = S.draft;
-  const choice = (value, title, desc, rec) => el("label", { class: "choice" },
-    el("input", { type: "radio", name: "imode", value, checked: d.INTERACTION_MODE === value,
-      onchange: () => { d.INTERACTION_MODE = value; render(); } }),
-    el("b", {}, title, rec ? el("span", { class: "rec", text: t("recommended") }) : null),
-    el("small", { text: desc }));
-  panel.append(el("div", { class: "choices", role: "radiogroup", "aria-label": t("INTERACTION_MODE") },
-    choice("modal", t("opt_modal"), t("opt_modal_desc"), true),
-    choice("classic", t("opt_classic"), t("opt_classic_desc"), false)));
-
-  const rows = el("div", { style: "margin-top:20px" });
+  const rows = el("div");
   rows.append(rowSegmented("DOMINANT_HAND", [["right", "opt_right"], ["left", "opt_left"]]));
   rows.append(rowSwitch("LEFT_HAND_ENABLED"));
-  if (d.INTERACTION_MODE === "modal") {
-    rows.append(rowRaw(t("ATTENTION_GATE"), t("sec_look_p"), switchControl(d.ATTENTION_GATE !== "off", (on) => {
-      d.ATTENTION_GATE = on ? "always" : "off"; updateSaveBar();
-    }, t("ATTENTION_GATE"))));
-  }
+  rows.append(rowRaw(t("ATTENTION_GATE"), t("sec_look_p"), switchControl(d.ATTENTION_GATE !== "off", (on) => {
+    d.ATTENTION_GATE = on ? "always" : "off"; updateSaveBar();
+  }, t("ATTENTION_GATE"))));
   panel.append(rows);
   wizardActions(panel, {
     back: () => go("#setup/1"),
-    next: () => saveThen(["INTERACTION_MODE", "DOMINANT_HAND", "LEFT_HAND_ENABLED", "ATTENTION_GATE"], "#setup/3"),
+    next: () => saveThen(["DOMINANT_HAND", "LEFT_HAND_ENABLED", "ATTENTION_GATE"], "#setup/3"),
   });
 }
 
 function practiceSteps() {
   const hand = t("hand_" + (S.state.running.DOMINANT_HAND || "right"));
-  if (S.state.running.INTERACTION_MODE === "modal") {
+  if (S.state.interaction_mode === "modal") {
     return [["p_hand", "p_hand_d"], ["p_on", "p_on_d"], ["p_click", "p_click_d"], ["p_pause", "p_pause_d"], ["p_off", "p_off_d"]]
       .map(([a, b]) => [t(a, { hand }), t(b)]);
   }
@@ -904,7 +872,7 @@ function setupPractice(panel) {
   panel.append(el("ol", { class: "practice", id: "practice" }, steps.map(([title, desc]) =>
     el("li", {}, el("b", { text: title }), el("small", { text: desc })))));
   panel.append(el("p", { class: "gaze", id: "gaze", hidden: true, text: t("gaze_hint") }));
-  if (S.state.running.INTERACTION_MODE === "modal") panel.append(el("p", { class: "tip", text: t("p_tip") }));
+  if (S.state.interaction_mode === "modal") panel.append(el("p", { class: "tip", text: t("p_tip") }));
   // Until every step is green the way forward is "skip"; then it becomes "continue"
   panel.append(el("div", { class: "actions" },
     el("button", { type: "button", class: "btn quiet", onclick: () => go("#setup/2"), text: t("back") }),
@@ -918,7 +886,7 @@ function setupPractice(panel) {
 function updatePractice() {
   const list = $("practice");
   if (!list || !S.status) return;
-  const st = S.status, p = S.practice, modal = S.state.running.INTERACTION_MODE === "modal";
+  const st = S.status, p = S.practice, modal = S.state.interaction_mode === "modal";
   const clicked = () => {
     if (p.base === null) p.base = st.clicks; // counted from when this step starts
     return st.clicks > p.base;
@@ -975,7 +943,7 @@ async function saveThen(keys, nextHash) {
 
 // Settings ─────────────────────────────────────────────────────────────────
 function renderSettings(panel) {
-  const d = S.draft, modal = d.INTERACTION_MODE === "modal";
+  const d = S.draft, modal = S.state.interaction_mode === "modal";
   const pendingKeys = Object.keys(S.state.values).filter((k) => !same(S.state.values[k], S.state.running[k]));
   if (pendingKeys.length) {
     panel.append(el("p", { class: "note warn" }, t("pending_banner"),
@@ -990,7 +958,6 @@ function renderSettings(panel) {
 
   panel.append(section("camera", [cameraPicker(!!(S.status && S.status.camera_error))]));
   panel.append(section("use", [
-    rowSegmented("INTERACTION_MODE", [["modal", "opt_modal"], ["classic", "opt_classic"]]),
     rowSegmented("DOMINANT_HAND", [["right", "opt_right"], ["left", "opt_left"]]),
     rowSwitch("LEFT_HAND_ENABLED"),
     modal ? rowModes() : null,

@@ -71,14 +71,16 @@ ZOOM_WRIST_DELTA    = 0.05        # normalized wrist-to-wrist distance change pe
 LOCK_SCREEN_HOLD_S  = 1.0         # both fists held this long → Win+L
 
 # ── Interaction mode ──────────────────────────────────────────────────────────
-# "classic": the original always-on gesture set (README → Gesture Guide).
-# "modal":   starts OFF and ignores the hands until you pick a mode by holding
+# "modal":   (default) starts OFF and ignores the hands until you pick a mode by holding
 #            1–5 fingers still: MOVE, SCROLL, SHORTCUTS, MEDIA, WINDOWS (5 only
 #            right after a fist — see MODE_START_NEEDS_FIST). Once in a
 #            mode it stays locked — any hand shape works — until you hold a fist
 #            to turn it off. While a mode is on, the left hand fires system
 #            shortcuts (LEFT_HAND_BINDINGS). README → Modal Mode.
-INTERACTION_MODE = "classic"
+# "classic": the original always-on gesture set (README → Gesture Guide). Every
+#            hand movement is a command, so it is only available from
+#            config_local.py — the settings page offers modal mode only.
+INTERACTION_MODE = "modal"
 MODES_ENABLED = ("move", "scroll", "shortcuts", "media", "windows")
 
 # ── Modal: turning on, choosing a mode, turning off ───────────────────────────

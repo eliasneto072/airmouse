@@ -78,7 +78,7 @@ While running, AirMouse shows an icon next to the clock (its colour follows the 
 
 ### Settings page and first-run guide
 
-The first time AirMouse starts it opens a short guide in your browser: pick the camera (a snapshot of each one), choose classic or modal mode, then **practise with your own hand** — each step turns green as AirMouse recognises it (show your hand, turn on, click, pause, turn off). Later, click the tray icon for the same page with every user-facing setting: camera, mode, mouse hand, cursor speed, pinch sensitivity, gesture timings, look check, on-screen label and sounds, start with Windows. **Save and apply** restarts AirMouse in a few seconds; the page reconnects by itself.
+The first time AirMouse starts it opens a short guide in your browser: pick the camera (a snapshot of each one), choose the mouse hand and the look check, then **practise with your own hand** — each step turns green as AirMouse recognises it (show your hand, turn on, click, pause, turn off). Later, click the tray icon for the same page with every user-facing setting: camera, mode, mouse hand, cursor speed, pinch sensitivity, gesture timings, look check, on-screen label and sounds, start with Windows. **Save and apply** restarts AirMouse in a few seconds; the page reconnects by itself.
 
 - The page is served by AirMouse on `127.0.0.1` only and every request needs a token that is part of the address the tray opens, so other web pages and other computers can't reach the camera preview or your settings.
 - Saved values go to `%APPDATA%\AirMouse\settings.json` and win over `config.py` and `config_local.py`. Any other setting can still be changed in `config_local.py` (tray → *Advanced*).
@@ -99,6 +99,8 @@ On startup you'll see logs like:
 ---
 
 ## Gesture Guide
+
+> These are the **classic** gestures (`INTERACTION_MODE = "classic"` in `config_local.py`). AirMouse starts in **modal mode** by default — see [Modal Mode](#modal-mode-default).
 
 ### Right Hand — Mouse Control
 
@@ -151,13 +153,15 @@ Activated only when both hands are visible.
 
 ---
 
-## Modal Mode *(opt-in)*
+## Modal Mode *(default)*
 
 In the classic mode every hand movement is a command, so scratching your face or reaching for a mug moves the cursor and clicks. Modal mode starts **OFF** and ignores your hands until you pick a mode. Once a mode is on it is **locked**: any hand shape belongs to that mode (an open palm in MOVE keeps moving the cursor), so nothing switches by accident.
 
+Modal mode is the default and the only one the settings page offers. The original always-on gestures (the Gesture Guide above) are still available for developers:
+
 ```python
-# config_local.py (git-ignored) — or edit config.py
-INTERACTION_MODE = "modal"
+# config_local.py (git-ignored)
+INTERACTION_MODE = "classic"
 ```
 
 ### Picking a mode, pausing, turning off

@@ -56,7 +56,6 @@ class Setting:
 
 SCHEMA: tuple[Setting, ...] = (
     Setting("CAMERA_INDEX", "int", min=0, max=9),
-    Setting("INTERACTION_MODE", "choice", ("modal", "classic")),
     Setting("DOMINANT_HAND", "choice", ("right", "left")),
     Setting("LEFT_HAND_ENABLED", "bool"),
     Setting("MODES_ENABLED", "multi", ("move", "scroll", "shortcuts", "media", "windows")),
@@ -73,6 +72,8 @@ SCHEMA: tuple[Setting, ...] = (
     Setting("SOUNDS_ENABLED", "bool"),
 )
 BY_KEY = {s.key: s for s in SCHEMA}
+# Settings the page used to offer: still in old files, silently ignored
+RETIRED = frozenset({"INTERACTION_MODE"})
 
 DEFAULTS: dict = {}       # config.py values before any override (filled by config.py)
 problems: list[str] = []  # what was wrong with the file at the last load
@@ -145,7 +146,7 @@ def load(path: Path | None = None) -> dict:
     if not isinstance(data, dict):
         problems.append(f"{path}: not a JSON object, ignored")
         return {}
-    valid, errors = validate(data)
+    valid, errors = validate({k: v for k, v in data.items() if k not in RETIRED})
     problems.extend(f"{path}: {key} ignored ({reason})" for key, reason in errors.items())
     return valid
 

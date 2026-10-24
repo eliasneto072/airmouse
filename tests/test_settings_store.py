@@ -27,7 +27,7 @@ def test_config_records_the_defaults_before_any_override():
         ("CAMERA_INDEX", 2, 2),
         ("CAMERA_INDEX", 2.0, 2),
         ("POINTER_SPEED", 500, 500.0),
-        ("INTERACTION_MODE", "modal", "modal"),
+        ("ATTENTION_GATE", "start", "start"),
         ("MODES_ENABLED", ["scroll", "move"], ("move", "scroll")),  # canonical order
     ],
 )
@@ -46,7 +46,7 @@ def test_valid_values_are_coerced(key, value, expected):
         ("POINTER_SPEED", "fast"),
         ("POINTER_SPEED", float("nan")),
         ("POINTER_SPEED", 5000),
-        ("INTERACTION_MODE", "turbo"),
+        ("ATTENTION_GATE", "turbo"),
         ("MODES_ENABLED", []),
         ("MODES_ENABLED", ["move", "move"]),
         ("MODES_ENABLED", ["move", "fly"]),
@@ -76,6 +76,15 @@ def test_bad_entries_are_skipped_good_ones_kept(tmp_path):
     path.write_text(json.dumps({"POINTER_SPEED": 600, "CAMERA_INDEX": "one", "NOPE": 1, "_setup_done": True}))
     assert store.load(path) == {"POINTER_SPEED": 600.0, "_setup_done": True}
     assert len(store.problems) == 2
+
+
+def test_retired_settings_in_old_files_are_ignored_quietly(tmp_path):
+    path = tmp_path / "settings.json"
+    path.write_text(json.dumps({"INTERACTION_MODE": "classic", "HUD_ENABLED": False}))
+    assert store.load(path) == {"HUD_ENABLED": False}
+    assert store.problems == []
+    store.update({"SOUNDS_ENABLED": False}, path)  # the next save drops it from the file
+    assert "INTERACTION_MODE" not in json.loads(path.read_text())
 
 
 def test_round_trip_creates_the_folder(tmp_path):
@@ -125,5 +134,5 @@ def test_settings_file_location(monkeypatch, tmp_path):
 
 def test_snapshot_reads_a_module_or_globals():
     snap = store.snapshot(config)
-    assert snap["INTERACTION_MODE"] == config.INTERACTION_MODE
+    assert snap["ATTENTION_GATE"] == config.ATTENTION_GATE
     assert store.snapshot({"HUD_ENABLED": True}) == {"HUD_ENABLED": True}
