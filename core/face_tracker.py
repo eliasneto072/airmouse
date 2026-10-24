@@ -4,9 +4,7 @@
 from __future__ import annotations
 
 import logging
-import os
 import time
-import urllib.request
 
 import cv2
 
@@ -18,6 +16,7 @@ from config import (
     FACE_MODEL_URL,
     FACE_TRACKING_WIDTH,
 )
+from core import models
 from core.attention import Vector, face_direction
 
 logger = logging.getLogger(__name__)
@@ -25,13 +24,7 @@ logger = logging.getLogger(__name__)
 
 def ensure_model(path: str = FACE_MODEL_PATH, url: str = FACE_MODEL_URL) -> None:
     """Download the face model on first use (it is git-ignored like the hand model)."""
-    if os.path.exists(path):
-        return
-    os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
-    logger.info("Downloading the MediaPipe face model (~3.7 MB) to %s …", path)
-    tmp = path + ".part"
-    urllib.request.urlretrieve(url, tmp)
-    os.replace(tmp, path)
+    models.ensure_model(path, url, "MediaPipe face (~3.7 MB)")
 
 
 class FaceTracker:

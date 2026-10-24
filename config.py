@@ -10,7 +10,8 @@ CAMERA_FPS = 60                   # Target capture FPS; webcam must support this
 CAMERA_BUFFER_SIZE = 1            # DirectShow buffer: 1 = always freshest frame
 
 # ── MediaPipe ──────────────────────────────────────────────────────────────────
-MP_MODEL_PATH = "models/hand_landmarker.task"  # float16 Tasks API bundle
+MP_MODEL_PATH = "models/hand_landmarker.task"  # float16 Tasks API bundle, downloaded on first run
+MP_MODEL_URL = "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/latest/hand_landmarker.task"
 MP_MAX_HANDS = 2                  # hands tracked; forced to 1 when both hand layers below are off
 MP_DETECTION_CONFIDENCE = 0.7
 MP_TRACKING_CONFIDENCE = 0.5

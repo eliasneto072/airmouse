@@ -28,6 +28,26 @@ from config import (
 logger = logging.getLogger(__name__)
 
 
+def letterbox_padding(width: int, height: int, target_w: int = CAMERA_WIDTH, target_h: int = CAMERA_HEIGHT):
+    """
+    (top, bottom, left, right) black borders that give a frame the configured
+    aspect ratio, or None when it already has it.
+
+    The gesture code measures hands in pixels using CAMERA_WIDTH × CAMERA_HEIGHT;
+    a 4:3 camera (many laptops, phone-as-webcam apps) read as 16:9 would stretch
+    every hand sideways. Padding keeps the geometry true without resizing.
+    """
+    target = target_w / target_h
+    aspect = width / height
+    if abs(aspect - target) / target < 0.01:
+        return None
+    if aspect < target:  # narrower: borders left and right
+        extra = round(height * target) - width
+        return 0, 0, extra // 2, extra - extra // 2
+    extra = round(width / target) - height  # wider: borders top and bottom
+    return extra // 2, extra - extra // 2, 0, 0
+
+
 class AsyncCamera:
     """
     Thread-safe frame source backed by a dedicated capture thread.
@@ -47,6 +67,8 @@ class AsyncCamera:
         self._lock = threading.Lock()
         self._stop_event = threading.Event()
         self._thread: threading.Thread | None = None
+        self._shape = None    # size of the frames the camera really delivers
+        self._padding = None  # letterbox borders for that size (None: none needed)
 
     def start(self) -> "AsyncCamera":
         """Open the camera and start the capture thread."""
@@ -90,6 +112,17 @@ class AsyncCamera:
                 logger.warning("Frame grab failed — camera disconnected?")
                 self._stop_event.wait(timeout=0.01)
                 continue
+            if frame.shape[:2] != self._shape:
+                self._shape = frame.shape[:2]
+                self._padding = letterbox_padding(self._shape[1], self._shape[0])
+                if self._padding is not None:
+                    logger.info(
+                        "Camera frames are %dx%d, not %d:%d — adding black borders so hands keep their shape",
+                        self._shape[1], self._shape[0], CAMERA_WIDTH, CAMERA_HEIGHT,
+                    )
+            if self._padding is not None:
+                top, bottom, left, right = self._padding
+                frame = cv2.copyMakeBorder(frame, top, bottom, left, right, cv2.BORDER_CONSTANT, value=(0, 0, 0))
             with self._lock:
                 self._frame = frame
 

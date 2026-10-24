@@ -45,6 +45,12 @@ Everything runs in a tight async loop. Frame capture never blocks inference. Cur
 
 ## Quick Start
 
+**Easiest (no Python knowledge needed):** on GitHub choose *Code → Download ZIP*, extract it, and double-click **`install.bat`**. It installs Python 3.12 for your user if needed (via winget), creates a private environment, installs the libraries (~300 MB the first time), creates Desktop / Start-menu shortcuts and starts AirMouse, which opens a setup guide in your browser. Running it again is safe.
+
+> No webcam? A phone-as-webcam app (e.g. DroidCam or Iriun: app on the phone, client on the PC, same Wi-Fi) shows up as a normal camera — pick it in the guide's first step. 4:3 cameras are supported (AirMouse adds side borders instead of stretching the picture).
+
+**Manual setup (developers):**
+
 ```powershell
 git clone https://github.com/Rcidshacker/airmouse.git
 cd airmouse
@@ -53,9 +59,10 @@ cd airmouse
 python -m venv .venv
 .\.venv\Scripts\pip install -r requirements.txt
 
-# Download the MediaPipe hand model (~7.5 MB, git-ignored)
-mkdir models
-curl.exe -L -o models\hand_landmarker.task https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/latest/hand_landmarker.task
+# The MediaPipe models (hand ~7.5 MB, face ~3.7 MB) download to models\ on the first run.
+# To fetch the hand model by hand instead:
+#   mkdir models
+#   curl.exe -L -o models\hand_landmarker.task https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/latest/hand_landmarker.task
 
 # Verify all subsystems are healthy
 .\.venv\Scripts\python test_startup.py

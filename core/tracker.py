@@ -25,10 +25,12 @@ from mediapipe.tasks.python.vision import HandLandmarker, HandLandmarkerOptions,
 import numpy as np
 
 from core.handedness import HandednessStabilizer
+from core.models import ensure_model
 from config import (
     MP_DETECTION_CONFIDENCE,
     MP_TRACKING_CONFIDENCE,
     MP_MODEL_PATH,
+    MP_MODEL_URL,
     MP_MAX_HANDS,
     MP_VIDEO_MODE,
     FLIP_HANDEDNESS,
@@ -88,6 +90,7 @@ class HandTracker:
     """
 
     def __init__(self) -> None:
+        ensure_model(MP_MODEL_PATH, MP_MODEL_URL, "MediaPipe hand (~7.5 MB)")
         base_options = python.BaseOptions(model_asset_path=MP_MODEL_PATH)
         num_hands = resolve_num_hands(MP_MAX_HANDS, LEFT_HAND_ENABLED, TWO_HAND_GESTURES_ENABLED)
         options = HandLandmarkerOptions(
