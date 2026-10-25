@@ -55,6 +55,7 @@ class Setting:
 
 
 SCHEMA: tuple[Setting, ...] = (
+    Setting("CAMERA_SOURCE", "choice", ("webcam", "phone")),
     Setting("CAMERA_INDEX", "int", min=0, max=9),
     Setting("DOMINANT_HAND", "choice", ("right", "left")),
     Setting("LEFT_HAND_ENABLED", "bool"),

@@ -1,0 +1,255 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="referrer" content="no-referrer">
+<meta name="theme-color" content="#1d1f24">
+<title>AirMouse: câmera do celular</title>
+<style>
+/* Served by AirMouse to a phone on the same Wi-Fi: the phone becomes the camera. */
+:root {
+  color-scheme: dark;
+  --bg: #1d1f24;
+  --raised: #262930;
+  --sunken: #16181c;
+  --line: #363a43;
+  --text: #f1f2f4;
+  --muted: #a9aeb8;
+  --ok: #3fbf7f;
+  --warn: #f2a33a;
+  --action: #4c8dff;
+  --action-text: #0c1322;
+  --display: "Bahnschrift", "DIN Alternate", system-ui, sans-serif;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--text); }
+body {
+  font: 17px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  padding: max(16px, env(safe-area-inset-top)) 16px max(24px, env(safe-area-inset-bottom));
+  max-width: 760px; margin: 0 auto;
+}
+header { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+header svg { width: 28px; height: 28px; }
+header b { font: 600 20px/1 var(--display); }
+header span { color: var(--muted); }
+.view {
+  position: relative; aspect-ratio: 16 / 9; border-radius: 18px; overflow: hidden;
+  background: var(--sunken); box-shadow: 0 0 0 3px var(--ring, var(--line));
+}
+video { width: 100%; height: 100%; object-fit: cover; display: block; }
+video.mirror { transform: scaleX(-1); }
+.placeholder { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; padding: 20px; color: var(--muted); }
+.status { margin: 16px 2px 0; font: 600 22px/1.25 var(--display); }
+.status.ok { color: var(--ok); }
+.status.warn { color: var(--warn); }
+.detail { margin: 4px 2px 0; color: var(--muted); min-height: 1.45em; }
+.actions { display: flex; gap: 10px; flex-wrap: wrap; margin: 18px 0 0; }
+button {
+  font: inherit; font-weight: 600; border: 0; border-radius: 999px; cursor: pointer;
+  padding: 14px 22px; background: var(--action); color: var(--action-text);
+}
+button.quiet { background: var(--raised); color: var(--text); font-weight: 500; }
+button:focus-visible { outline: 2px solid var(--action); outline-offset: 2px; }
+ol { margin: 22px 0 0; padding-left: 1.3em; color: var(--muted); }
+li { margin: 6px 0; }
+[hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<header>
+  <svg viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="13" fill="#1d1f24"/><circle cx="32" cy="32" r="23" fill="none" stroke="#4c8dff" stroke-width="5"/><path d="M22 15v32l8-8 6 12 5-3-6-11h10z" fill="#fff"/></svg>
+  <b>AirMouse</b><span id="subtitle"></span>
+</header>
+
+<div class="view" id="view">
+  <video id="video" playsinline muted autoplay></video>
+  <div class="placeholder" id="placeholder"></div>
+</div>
+<p class="status" id="status" aria-live="polite"></p>
+<p class="detail" id="detail"></p>
+
+<div class="actions">
+  <button type="button" id="startBtn"></button>
+  <button type="button" class="quiet" id="flipBtn" hidden></button>
+  <button type="button" class="quiet" id="stopBtn" hidden></button>
+</div>
+
+<ol id="tips"></ol>
+
+<script>
+"use strict";
+const TOKEN = "__AIRMOUSE_TOKEN__";
+const WORDS = {
+  pt: {
+    subtitle: "câmera do celular", start: "Ligar a câmera", flip: "Trocar câmera", stop: "Parar",
+    placeholder: "Toque em “Ligar a câmera” e permita o acesso.",
+    connecting: "Conectando ao PC…", sending: "Enviando para o PC", fps: "{fps} quadros/s",
+    offline: "Sem conexão com o PC", offline_d: "Tentando de novo… O AirMouse está aberto no PC e no mesmo Wi-Fi?",
+    hand: "AirMouse vê sua mão", nohand: "Mostre a mão para a câmera", mode: "Modo: {mode}",
+    stopped: "Câmera parada",
+    old_code: "Este código não vale mais", old_code_d: "Escaneie de novo o QR code que aparece nos ajustes do AirMouse.",
+    no_api: "Este navegador não liberou a câmera",
+    no_api_d: "Abra o endereço com https:// do QR code no Chrome ou no Safari e aceite o aviso de segurança.",
+    denied: "Câmera não permitida", denied_d: "Toque no cadeado ou no ícone da câmera na barra de endereço e permita, depois tente de novo.",
+    nocam: "Nenhuma câmera encontrada", failed: "A câmera não abriu",
+    portrait: "Dica: deite o celular de lado (horizontal), a mão cabe melhor.",
+    tips: [
+      "Apoie o celular parado, de lado (na horizontal), apontado para você, como uma webcam.",
+      "Deixe esta página aberta e a tela ligada. Na tomada é melhor: usar a câmera gasta bateria.",
+      "No PC, os ajustes do AirMouse mostram a imagem que está chegando.",
+    ],
+    modes: { disarmed: "desligado", move: "Mover", scroll: "Rolar", shortcuts: "Atalhos", media: "Mídia", windows: "Janelas", paused: "pausado", classic: "clássico" },
+  },
+  en: {
+    subtitle: "phone camera", start: "Turn on the camera", flip: "Switch camera", stop: "Stop",
+    placeholder: "Tap “Turn on the camera” and allow access.",
+    connecting: "Connecting to the PC…", sending: "Sending to the PC", fps: "{fps} frames/s",
+    offline: "No connection to the PC", offline_d: "Trying again… Is AirMouse open on the PC, on the same Wi-Fi?",
+    hand: "AirMouse sees your hand", nohand: "Show your hand to the camera", mode: "Mode: {mode}",
+    stopped: "Camera stopped",
+    old_code: "This code is no longer valid", old_code_d: "Scan the QR code in AirMouse's settings again.",
+    no_api: "This browser didn't give access to the camera",
+    no_api_d: "Open the https:// address from the QR code in Chrome or Safari and accept the security warning.",
+    denied: "Camera not allowed", denied_d: "Tap the lock or camera icon in the address bar, allow the camera, then try again.",
+    nocam: "No camera found", failed: "The camera didn't open",
+    portrait: "Tip: turn the phone sideways (landscape) so your hand fits better.",
+    tips: [
+      "Prop the phone up, still and sideways (landscape), pointing at you like a webcam.",
+      "Keep this page open and the screen on. Plug it in: the camera uses battery.",
+      "On the PC, AirMouse's settings show the picture as it arrives.",
+    ],
+    modes: { disarmed: "off", move: "Move", scroll: "Scroll", shortcuts: "Shortcuts", media: "Media", windows: "Windows", paused: "paused", classic: "classic" },
+  },
+};
+const LANG = (navigator.language || "pt").toLowerCase().startsWith("pt") ? "pt" : "en";
+const W = WORDS[LANG];
+const t = (k, vars) => { let s = W[k]; for (const [a, b] of Object.entries(vars || {})) s = s.replace("{" + a + "}", b); return s; };
+const $ = (id) => document.getElementById(id);
+document.documentElement.lang = LANG === "pt" ? "pt-BR" : "en";
+$("subtitle").textContent = t("subtitle");
+$("startBtn").textContent = t("start");
+$("flipBtn").textContent = t("flip");
+$("stopBtn").textContent = t("stop");
+$("placeholder").textContent = t("placeholder");
+$("tips").replaceChildren(...W.tips.map((tip) => Object.assign(document.createElement("li"), { textContent: tip })));
+
+const video = $("video");
+const canvas = document.createElement("canvas");
+const ctx = canvas.getContext("2d");
+let stream = null, facing = "user", running = false, wakeLock = null;
+let frames = [], online = true;
+
+function say(text, detail = "", kind = "") {
+  $("status").textContent = text;
+  $("status").className = "status " + kind;
+  $("detail").textContent = detail;
+}
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+async function keepScreenOn() {
+  try { if ("wakeLock" in navigator && !wakeLock) wakeLock = await navigator.wakeLock.request("screen"); } catch (e) {}
+  if (wakeLock) wakeLock.addEventListener("release", () => { wakeLock = null; }, { once: true });
+}
+
+async function start() {
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { say(t("no_api"), t("no_api_d"), "warn"); return; }
+  stopTracks();
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({
+      audio: false,
+      video: { facingMode: facing, width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 30 } },
+    });
+  } catch (e) {
+    if (e.name === "NotAllowedError") say(t("denied"), t("denied_d"), "warn");
+    else if (e.name === "NotFoundError" || e.name === "OverconstrainedError") say(t("nocam"), "", "warn");
+    else say(t("failed"), e.message || String(e), "warn");
+    return;
+  }
+  video.srcObject = stream;
+  video.classList.toggle("mirror", facing === "user"); // the picture sent to the PC is never mirrored
+  try { await video.play(); } catch (e) {}
+  $("placeholder").hidden = true;
+  $("startBtn").hidden = true;
+  $("flipBtn").hidden = false;
+  $("stopBtn").hidden = false;
+  say(t("connecting"));
+  keepScreenOn();
+  if (!running) { running = true; loop(); }
+}
+
+function stopTracks() {
+  if (stream) stream.getTracks().forEach((track) => track.stop());
+  stream = null;
+}
+
+function stop() {
+  running = false;
+  stopTracks();
+  video.srcObject = null;
+  $("placeholder").hidden = false;
+  $("startBtn").hidden = false;
+  $("flipBtn").hidden = true;
+  $("stopBtn").hidden = true;
+  say(t("stopped"));
+  document.documentElement.style.setProperty("--ring", "var(--line)");
+}
+
+function showState(state) {
+  const now = performance.now();
+  frames.push(now);
+  frames = frames.filter((x) => now - x < 2000);
+  const fps = frames.length > 1 ? Math.round((frames.length - 1) / ((frames[frames.length - 1] - frames[0]) / 1000)) : 0;
+  const mode = state.mode ? t("mode", { mode: W.modes[state.mode] || state.mode }) : "";
+  const detail = [mode, fps ? t("fps", { fps }) : ""].filter(Boolean).join("  |  ");
+  if (state.hand) say(t("hand"), detail, "ok");
+  else say(state.mode ? t("nohand") : t("sending"), detail);
+  document.documentElement.style.setProperty("--ring", state.hand ? "var(--ok)" : "var(--action)");
+  if (video.videoHeight > video.videoWidth) $("detail").textContent = t("portrait");
+}
+
+async function loop() {
+  const interval = 1000 / 24;
+  while (running) {
+    const began = performance.now();
+    if (video.readyState >= 2 && video.videoWidth) {
+      const scale = Math.min(1, 960 / Math.max(video.videoWidth, video.videoHeight));
+      canvas.width = Math.round(video.videoWidth * scale);
+      canvas.height = Math.round(video.videoHeight * scale);
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.7));
+      if (blob) {
+        try {
+          const res = await fetch("frame", {
+            method: "POST", body: blob, cache: "no-store",
+            headers: { "X-AirMouse-Token": TOKEN, "Content-Type": "image/jpeg" },
+          });
+          if (res.status === 403) { stop(); say(t("old_code"), t("old_code_d"), "warn"); return; }
+          online = true;
+          showState(await res.json().catch(() => ({})));
+        } catch (e) {
+          online = false;
+          say(t("offline"), t("offline_d"), "warn");
+          document.documentElement.style.setProperty("--ring", "var(--warn)");
+          await sleep(1000);
+        }
+      }
+    }
+    const rest = interval - (performance.now() - began);
+    if (rest > 0) await sleep(rest);
+  }
+}
+
+$("startBtn").addEventListener("click", start);
+$("stopBtn").addEventListener("click", stop);
+$("flipBtn").addEventListener("click", () => { facing = facing === "user" ? "environment" : "user"; start(); });
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState !== "visible" || !running) return;
+  keepScreenOn();
+  // phones stop the camera while the page is in the background: turn it back on
+  if (!stream || stream.getVideoTracks().every((track) => track.readyState === "ended")) start();
+});
+say("", "");
+</script>
+</body>
+</html>

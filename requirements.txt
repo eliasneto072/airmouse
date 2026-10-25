@@ -5,3 +5,5 @@ screeninfo
 pynput
 psutil
 pystray
+segno
+cryptography

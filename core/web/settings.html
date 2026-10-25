@@ -139,6 +139,22 @@ button, input { font: inherit; color: inherit; }
   padding: 24px; color: var(--muted);
 }
 .mirror-empty strong { display: block; color: var(--text); font: 600 20px/1.3 var(--display); margin-bottom: 4px; }
+/* Pairing a phone: QR code and steps, inside the mirror and in Settings */
+.pair {
+  display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 18px; align-items: center;
+}
+.mirror .pair { position: absolute; inset: 0; padding: 18px; background: var(--sunken); overflow: auto; }
+.pair img { width: clamp(120px, 34vw, 210px); aspect-ratio: 1; border-radius: 10px; background: #fff; display: block; }
+.pair strong { display: block; font: 600 20px/1.25 var(--display); margin-bottom: 6px; }
+.pair ol { margin: 0; padding-left: 1.2em; color: var(--muted); font-size: 14px; }
+.pair li { margin: 3px 0; }
+.pair .pair-url { display: block; margin-top: 8px; font-size: 13px; color: var(--faint); word-break: break-all; }
+.pair .pair-note { display: block; margin-top: 6px; font-size: 13px; color: var(--muted); }
+@media (max-width: 560px) { .pair { grid-template-columns: 1fr; } }
+.section .pair { margin-top: 14px; padding: 16px; border-radius: var(--radius-m); background: var(--raised); }
+.cam .shot.phone-shot { display: grid; place-items: center; color: var(--muted); }
+.cam .phone-shot svg { width: 46px; height: 46px; }
+.cam .sub { display: block; font-size: 13px; color: var(--muted); font-weight: 400; }
 .look {
   position: absolute; left: 12px; top: 12px;
   padding: 4px 10px; border-radius: 999px;
@@ -414,6 +430,7 @@ button, input { font: inherit; color: inherit; }
     <figure class="mirror">
       <img id="preview" alt="" hidden>
       <div class="mirror-empty" id="mirrorEmpty"><div><strong id="mirrorTitle"></strong><span id="mirrorText"></span></div></div>
+      <div class="pair" id="mirrorPair" hidden></div>
       <span class="look" id="look" hidden></span>
     </figure>
     <div class="readout" aria-live="polite">
@@ -465,6 +482,15 @@ const WORDS = {
     support_seen: "outra mão", look_on: "olhando para a tela", look_off: "olhando para outro lado ({angle}°)",
     look_noface: "rosto não encontrado", fps: "{fps} quadros/s",
     cam_wait_title: "Esperando a câmera", cam_wait_text: "A imagem aparece aqui em instantes.",
+    phone_cam: "Celular", phone_cam_d: "pelo Wi-Fi, sem app",
+    phone_next: "Depois de continuar, o código para abrir no celular aparece na imagem ao lado.",
+    pair_title: "Abra no celular",
+    pair_1: "Deixe o celular no mesmo Wi-Fi deste PC.",
+    pair_2: "Aponte a câmera do celular para o código e abra o link.",
+    pair_3: "Se aparecer “a conexão não é particular”, toque em Avançado (ou Mostrar detalhes) e em Continuar: o certificado é deste PC.",
+    pair_4: "Toque em Ligar a câmera e permita.",
+    pair_note: "Se o Windows perguntar sobre o Firewall, marque as redes e clique em Permitir.",
+    pair_none: "Este PC não está em nenhuma rede. Conecte no Wi-Fi e reinicie o AirMouse.",
     cam_error_title: "A câmera não abriu", cam_error_text: "Escolha outra câmera ao lado e salve.",
     paused_title: "Gestos pausados", paused_text: "Retome pelo ícone do AirMouse ao lado do relógio.",
     lost_title: "Sem conexão com o AirMouse", lost_text: "Ele foi fechado? Abra de novo pelo menu Iniciar.",
@@ -511,7 +537,7 @@ const WORDS = {
     change_camera: "Trocar de câmera", file: "Arquivo de ajustes",
     reset: "voltar ao padrão", seconds: "{v} s", degrees: "{v}°", lines: "{v} linhas",
     finding_cams: "Procurando câmeras… leva alguns segundos.", find_again: "Procurar de novo",
-    no_cams: "Nenhuma câmera encontrada. Conecte uma e procure de novo.",
+    no_cams: "Nenhuma webcam encontrada. Use o celular, ou conecte uma webcam e procure de novo.",
     camera_n: "Câmera {n}", in_use: "em uso", selected: "escolhida", no_image: "sem imagem",
     changed_one: "Você mudou 1 ajuste.", changed_many: "Você mudou {n} ajustes.",
     discard: "Descartar", save_apply: "Salvar e aplicar",
@@ -537,6 +563,15 @@ const WORDS = {
     support_seen: "other hand", look_on: "looking at the screen", look_off: "looking away ({angle}°)",
     look_noface: "no face found", fps: "{fps} frames/s",
     cam_wait_title: "Waiting for the camera", cam_wait_text: "The picture shows up here in a moment.",
+    phone_cam: "Phone", phone_cam_d: "over Wi-Fi, no app",
+    phone_next: "After you continue, the code to open on the phone shows up in the picture.",
+    pair_title: "Open it on your phone",
+    pair_1: "Put the phone on the same Wi-Fi as this PC.",
+    pair_2: "Point the phone's camera at the code and open the link.",
+    pair_3: "If it says the connection is not private, tap Advanced (or Show details) and Continue: the certificate belongs to this PC.",
+    pair_4: "Tap Turn on the camera and allow it.",
+    pair_note: "If Windows asks about the firewall, tick the networks and choose Allow.",
+    pair_none: "This PC isn't on a network. Connect it to Wi-Fi and restart AirMouse.",
     cam_error_title: "The camera didn't open", cam_error_text: "Pick another camera and save.",
     paused_title: "Gestures paused", paused_text: "Resume from the AirMouse icon next to the clock.",
     lost_title: "Lost contact with AirMouse", lost_text: "Was it closed? Open it again from the Start menu.",
@@ -583,7 +618,7 @@ const WORDS = {
     change_camera: "Change camera", file: "Settings file",
     reset: "reset", seconds: "{v} s", degrees: "{v}°", lines: "{v} lines",
     finding_cams: "Looking for cameras… this takes a few seconds.", find_again: "Look again",
-    no_cams: "No camera found. Plug one in and look again.",
+    no_cams: "No webcam found. Use your phone, or plug a webcam in and look again.",
     camera_n: "Camera {n}", in_use: "in use", selected: "selected", no_image: "no picture",
     changed_one: "You changed 1 setting.", changed_many: "You changed {n} settings.",
     discard: "Discard", save_apply: "Save and apply",
@@ -721,11 +756,15 @@ function updateMirror() {
   else if (st && st.camera_error) { title = t("cam_error_title"); text = t("cam_error_text"); }
   else if (st && st.user_paused) { title = t("paused_title"); text = t("paused_text"); }
   else if (!st || !st.camera) { title = t("cam_wait_title"); text = t("cam_wait_text"); }
+  // A phone camera that hasn't sent anything yet: show how to connect it instead
+  const pairing = title !== null && st && st.source === "phone" && st.phone && !st.camera && S.lost <= 3;
+  updatePair($("mirrorPair"), pairing ? st.phone : null);
+  if (pairing) title = null;
   $("mirrorEmpty").hidden = title === null;
-  img.hidden = title !== null;
+  img.hidden = title !== null || pairing;
   $("mirrorTitle").textContent = title || "";
   $("mirrorText").textContent = text;
-  if (title === null && !img.getAttribute("src")) startPreview();
+  if (title === null && !pairing && !img.getAttribute("src")) startPreview();
 
   // Readout
   $("modeName").textContent = st ? t("mode_" + key) : "";
@@ -762,6 +801,37 @@ function updateMirror() {
   if (brandRing) brandRing.style.stroke = modeColor(key);
 }
 
+// QR code and steps to open the phone page; rebuilt only when the address changes
+function updatePair(box, phone) {
+  box.hidden = !phone;
+  if (!phone) return;
+  const key = (phone.url || "") + "|" + S.lang;
+  if (box.dataset.key === key) return;
+  box.dataset.key = key;
+  if (!phone.url) {
+    box.replaceChildren(el("div", {}, el("strong", { text: t("pair_title") }), el("span", { class: "pair-note", text: t("pair_none") })));
+    return;
+  }
+  box.replaceChildren(
+    phone.qr ? el("img", { src: phone.qr, alt: phone.url }) : null,
+    el("div", {},
+      el("strong", { text: t("pair_title") }),
+      el("ol", {}, ["pair_1", "pair_2", "pair_3", "pair_4"].map((k) => el("li", { text: t(k) }))),
+      el("span", { class: "pair-url", text: phone.url }),
+      el("span", { class: "pair-note", text: t("pair_note") })));
+}
+
+const PHONE_ICON = '<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><rect x="13" y="5" width="22" height="38" rx="4"/><circle cx="24" cy="11" r="1.6" fill="currentColor" stroke="none"/><path d="M20 38h8"/></svg>';
+function phoneTile(selected, inUse) {
+  const shot = el("span", { class: "shot phone-shot" });
+  shot.append(document.createRange().createContextualFragment(PHONE_ICON));
+  return el("button", { type: "button", class: "cam", role: "radio", "aria-checked": String(selected),
+    onclick: () => { S.draft.CAMERA_SOURCE = "phone"; render(); } },
+    shot,
+    el("span", { class: "name" }, t("phone_cam"), inUse ? el("span", { class: "tag", text: t("in_use") }) : null),
+    el("span", { class: "sub", text: t("phone_cam_d") }));
+}
+
 function startPreview() {
   const img = $("preview");
   img.src = "/api/preview?t=" + encodeURIComponent(TOKEN) + "&n=" + Date.now();
@@ -776,8 +846,10 @@ async function poll() {
   if (polling || S.restarting) return;
   polling = true;
   try {
+    const first = !S.status;
     S.status = await api("/api/status");
     S.lost = 0;
+    if (first && S.state) render(); // parts of the panel depend on the live state (phone pairing)
     if (S.state && S.status.boot !== S.state.boot && !S.restarting) {
       await loadState(); // AirMouse was restarted from somewhere else
       render();
@@ -835,7 +907,7 @@ function setupCamera(panel) {
   panel.append(el("h1", { text: t("s1_title") }), el("p", { class: "lead", text: t("s1_lead") }));
   panel.append(cameraPicker(true));
   wizardActions(panel, {
-    next: () => saveThen(["CAMERA_INDEX"], "#setup/2"),
+    next: () => saveThen(["CAMERA_SOURCE", "CAMERA_INDEX"], "#setup/2"),
     extra: el("button", { type: "button", class: "link", onclick: skipSetup, text: t("skip_setup") }),
   });
 }
@@ -1101,27 +1173,37 @@ function cameraPicker(probe) {
 }
 function fillCameraPicker(wrap) {
   wrap.replaceChildren();
-  const running = S.state.running.CAMERA_INDEX;
+  const running = S.state.running;
   const broken = S.status && S.status.camera_error;
-  if (S.cameras && S.cameras.length) {
+  const phoneRunning = running.CAMERA_SOURCE === "phone";
+  const phoneChosen = S.draft.CAMERA_SOURCE === "phone";
+  if (S.cameras) {
     const grid = el("div", { class: "cams", role: "radiogroup", "aria-label": t("sec_camera") });
     for (const cam of S.cameras) {
-      const selected = S.draft.CAMERA_INDEX === cam.index;
-      const tag = cam.index === running && !broken ? t("in_use") : "";
+      const selected = !phoneChosen && S.draft.CAMERA_INDEX === cam.index;
+      const tag = !phoneRunning && cam.index === running.CAMERA_INDEX && !broken ? t("in_use") : "";
       const shot = el("span", { class: "shot", style: cam.thumb ? `background-image:url("${cam.thumb}")` : null },
         cam.thumb ? null : el("span", { class: "noimg", text: t("no_image") }));
       grid.append(el("button", { type: "button", class: "cam", role: "radio", "aria-checked": String(selected),
-        onclick: () => { S.draft.CAMERA_INDEX = cam.index; render(); } },
+        onclick: () => { S.draft.CAMERA_SOURCE = "webcam"; S.draft.CAMERA_INDEX = cam.index; render(); } },
         shot, el("span", { class: "name" }, t("camera_n", { n: cam.index }), tag ? el("span", { class: "tag", text: tag }) : null)));
     }
+    grid.append(phoneTile(phoneChosen, phoneRunning && !broken));
     wrap.append(grid);
+    if (phoneChosen && !phoneRunning) wrap.append(el("p", { class: "cams-status", text: t("phone_next") }));
   }
   if (!S.cameras && !S.camsLoading) {
     // Settings: no probing until asked (it briefly opens every camera)
+    const inUse = phoneChosen ? phoneRunning : !phoneRunning && S.draft.CAMERA_INDEX === running.CAMERA_INDEX;
     wrap.append(el("div", { class: "row" },
-      el("span", { class: "label" }, t("camera_n", { n: S.draft.CAMERA_INDEX }),
-        S.draft.CAMERA_INDEX === running && !broken ? el("span", { class: "tag", text: " " + t("in_use") }) : null),
+      el("span", { class: "label" }, phoneChosen ? t("phone_cam") : t("camera_n", { n: S.draft.CAMERA_INDEX }),
+        inUse && !broken ? el("span", { class: "tag", text: " " + t("in_use") }) : null),
       el("button", { type: "button", class: "btn quiet", onclick: () => loadCameras(true), text: t("change_camera") })));
+    if (phoneRunning && S.status && S.status.phone) {
+      const pair = el("div", { class: "pair" });
+      updatePair(pair, S.status.phone);
+      wrap.append(pair);
+    }
     return;
   }
   const status = S.camsLoading ? t("finding_cams") : !S.cameras.length ? t("no_cams") : "";

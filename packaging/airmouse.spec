@@ -15,6 +15,7 @@ ROOT = Path(SPECPATH).parent  # noqa: F821 (SPECPATH is defined by PyInstaller)
 
 datas = [
     (str(ROOT / "core" / "web" / "settings.html"), "core/web"),
+    (str(ROOT / "core" / "web" / "phone.html"), "core/web"),
     (str(ROOT / "models" / "hand_landmarker.task"), "models"),
     (str(ROOT / "models" / "face_landmarker.task"), "models"),
 ]

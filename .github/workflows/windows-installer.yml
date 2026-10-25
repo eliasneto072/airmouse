@@ -10,6 +10,8 @@ on:
   push:
     branches: ["feat/**", "fix/**"]
     tags: ["v*"]
+  release:
+    types: [published]  # a release made on github.com (its new tag may not count as a push)
   pull_request:
   workflow_dispatch:
 
@@ -107,8 +109,10 @@ jobs:
           $tag = "${{ github.ref_name }}"
           gh release view $tag *> $null
           if ($LASTEXITCODE -eq 0) {
-            # the release already exists (e.g. created on github.com): just attach the installer
+            # the release already exists (e.g. created on github.com): attach the installer
             gh release upload $tag $setup --clobber
+            $body = gh release view $tag --json body --jq .body
+            if (-not $body) { gh release edit $tag --notes-file packaging/RELEASE_NOTES.md }
           } else {
             gh release create $tag $setup --title "AirMouse ${{ steps.prepare.outputs.version }}" --notes-file packaging/RELEASE_NOTES.md
           }

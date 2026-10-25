@@ -186,6 +186,7 @@ class SettingsServer:
             "fps": round(float(c.fps or 0.0), 1),
             "camera": c.latest_frame is not None,
             "camera_error": getattr(c, "camera_error", None),
+            "source": self.running.get("CAMERA_SOURCE", "webcam"),
             "user_paused": bool(c.paused),
             "interaction_mode": self.interaction_mode,
             "dominant": dominant,
@@ -215,6 +216,8 @@ class SettingsServer:
             }
         else:
             data["look"] = None
+        phone = getattr(c, "phone", None)
+        data["phone"] = phone.info() if phone is not None else None
         counts = getattr(c.actuator, "counts", None) or {}
         data["clicks"] = int(counts.get("click", 0))
         data["scrolls"] = int(counts.get("scroll", 0))
@@ -234,7 +237,8 @@ class SettingsServer:
                     self._cameras = []
                 else:
                     # A camera that failed to open is probed like the others
-                    active = -1 if getattr(self.control, "camera_error", None) else self.running.get("CAMERA_INDEX", 0)
+                    in_use = not getattr(self.control, "camera_error", None) and self.running.get("CAMERA_SOURCE") != "phone"
+                    active = self.running.get("CAMERA_INDEX", 0) if in_use else -1
                     self._cameras = self._probe(active, self.control.latest_frame)
             return self._cameras
 

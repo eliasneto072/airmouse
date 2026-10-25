@@ -20,6 +20,7 @@ class AppControl:
         self.settings_url: str | None = None
         self.restart_requested = False
         self.camera_error: str | None = None  # the camera could not be opened (the page offers another)
+        self.phone = None  # PhoneServer when the camera is a phone (the page shows its QR code)
 
     # ── Pause ─────────────────────────────────────────────────────────────────
 

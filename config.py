@@ -4,6 +4,8 @@
 
 # ── Camera ─────────────────────────────────────────────────────────────────────
 CAMERA_INDEX = 0                  # Webcam device index
+CAMERA_SOURCE = "webcam"          # "webcam" | "phone": a phone's camera over Wi-Fi (no app: a page in its browser)
+PHONE_PORT = 47920                # the phone connects to https://<this PC>:PHONE_PORT (same Wi-Fi network)
 CAMERA_WIDTH = 1280               # Capture resolution width
 CAMERA_HEIGHT = 720               # Capture resolution height
 CAMERA_FPS = 60                   # Target capture FPS; webcam must support this

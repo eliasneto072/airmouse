@@ -47,12 +47,15 @@ import cv2
 
 from config import (
     CAMERA_HEIGHT,
+    CAMERA_SOURCE,
     CAMERA_WIDTH,
     DEBUG_GESTURES,
+    DOMINANT_HAND,
     LOG_FILE,
     PROCESS_PRIORITY,
     SETTINGS_PORT,
     SETTINGS_UI_ENABLED,
+    PHONE_PORT,
     TIMER_RESOLUTION_MS,
     TRAY_ENABLED,
 )
@@ -224,6 +227,25 @@ def _start_tray(control: AppControl, message: str):
     return tray
 
 
+def _start_phone_camera(control: AppControl):
+    """(PhoneCamera, PhoneServer) — the phone's camera over Wi-Fi — or (None, None) if it can't start."""
+    from core.phone_camera import PhoneCamera, PhoneServer
+
+    camera = PhoneCamera()
+    dominant = "left" if DOMINANT_HAND == "left" else "right"
+
+    def status() -> dict:  # sent back to the phone with every frame
+        hands = control.latest_hands
+        hand = None if hands is None else getattr(hands, dominant)
+        return {"mode": control.status_key(), "hand": hand is not None}
+
+    server = PhoneServer(camera, PHONE_PORT, status=status)
+    if not server.start():
+        return None, None
+    control.phone = server
+    return camera, server
+
+
 def _restart(server) -> None:
     """Start a fresh AirMouse (it reads the saved settings) once this one has let go of everything."""
     import subprocess
@@ -288,20 +310,28 @@ def run() -> None:
     processor = None
     server = _start_settings_page(control, restarted)
 
-    if restarted:
+    if CAMERA_SOURCE == "phone" and not restarted:
+        hello = "Phone camera: click this icon and scan the QR code with your phone."
+    elif restarted:
         hello = "Settings applied."
     elif first_run and server is not None:
         hello = "Welcome! Finish setting up AirMouse in your browser."
     else:
         hello = "AirMouse is running — right-click the icon for options."
 
-    camera = AsyncCamera()
-    try:
-        camera.start()
-    except RuntimeError as exc:
-        logger.error("%s", exc)
-        control.camera_error = str(exc)
-        camera = None
+    phone = None
+    if CAMERA_SOURCE == "phone":
+        camera, phone = _start_phone_camera(control)
+        if camera is None:
+            control.camera_error = "The phone camera could not start (see the log)."
+    else:
+        camera = AsyncCamera()
+        try:
+            camera.start()
+        except RuntimeError as exc:
+            logger.error("%s", exc)
+            control.camera_error = str(exc)
+            camera = None
 
     try:
         if camera is None:
@@ -309,7 +339,7 @@ def run() -> None:
             tray = _start_tray(control, "AirMouse can't open the camera — choose another one in Settings.")
             if server is None:
                 return
-            webbrowser.open(server.url + "#settings/camera")
+            webbrowser.open(server.url + ("#setup/1" if first_run else "#settings/camera"))
             while not control.stop.wait(0.3):
                 if tray is not None:
                     tray.refresh()
@@ -335,6 +365,29 @@ def run() -> None:
                     control.latest_hands = None
                     processor.process(HandsResult(), None)
                     time.sleep(0.03)
+                    continue
+
+                if phone is not None:
+                    # Frames arrive when the phone sends them. While none come (the page
+                    # closed, the screen locked) the pipeline still runs on "no hands",
+                    # so it lets go of keys and turns itself off like with a webcam.
+                    frame = camera.wait_frame(0.1)
+                    if frame is None:
+                        if not camera.connected:
+                            control.latest_frame = None
+                            control.latest_hands = None
+                        processor.process(HandsResult(), None)
+                        continue
+                    hands = tracker.process(frame)
+                    processor.process(hands, frame)
+                    control.latest_frame = frame
+                    control.latest_hands = hands
+                    frame_count += 1
+                    now = time.perf_counter()
+                    if now - fps_clock >= 1.0:
+                        control.fps = frame_count / (now - fps_clock)
+                        frame_count = 0
+                        fps_clock = now
                     continue
 
                 frame = camera.read()
@@ -389,11 +442,37 @@ def run() -> None:
         actuator.release_all()
         if camera is not None:
             camera.stop()
+        if phone is not None:
+            phone.stop()
         _restore_windows_settings(original_settings)
         original_settings.clear()  # prevent atexit double-restore
         logger.info("=== AI Air Mouse stopped ===")
         if control.restart_requested:
             _restart(server)
+
+
+def _self_test_phone_camera() -> None:
+    """Certificate, QR code and the HTTPS page for the phone, on this computer only."""
+    import ssl
+    import tempfile
+    import urllib.request
+
+    from core.phone_camera import PhoneCamera, PhoneServer
+
+    with tempfile.TemporaryDirectory() as tmp:
+        server = PhoneServer(PhoneCamera(), 0, data_dir=tmp, host="127.0.0.1")
+        assert server.start(), "phone camera server did not start"
+        try:
+            assert server.info()["qr"] or not server.url, "QR code missing"
+            context = ssl.create_default_context()
+            context.check_hostname = False
+            context.verify_mode = ssl.CERT_NONE  # self-signed, as on a real phone
+            url = f"https://127.0.0.1:{server.port}/?t={server.token}"
+            with urllib.request.urlopen(url, context=context, timeout=10) as res:
+                assert b"getUserMedia" in res.read(), "phone page missing"
+        finally:
+            server.stop()
+    logger.info("Self-test: phone camera ok")
 
 
 def self_test() -> int:
@@ -429,6 +508,7 @@ def self_test() -> int:
         face.process(frame)
         face.close()
         assert preview.render_preview(frame), "preview encoding failed"
+        _self_test_phone_camera()
         try:
             desktop = build_virtual_desktop()
             logger.info("Self-test: desktop %dx%d", desktop.total_width, desktop.total_height)

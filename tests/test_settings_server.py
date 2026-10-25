@@ -259,6 +259,6 @@ def test_a_taken_port_falls_back_to_the_next_one(tmp_path):
 def test_the_page_has_words_for_every_setting_in_both_languages():
     page = PAGE_PATH.read_text(encoding="utf-8")
     for setting in settings_store.SCHEMA:
-        if setting.key == "CAMERA_INDEX":  # the camera picker has its own words
+        if setting.key in ("CAMERA_INDEX", "CAMERA_SOURCE"):  # the camera picker has its own words
             continue
         assert len(re.findall(rf'(?<![A-Z_]){setting.key}: "', page)) >= 2, setting.key  # pt + en
